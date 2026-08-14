@@ -1080,9 +1080,7 @@ def login_page(error=""):
 </head>
 <body class="login-page">
     <form method="POST" action="/login" class="login-card" novalidate>
-        <img class="login-logo" src="/static/logo_policia.png" alt="Polic&iacute;a Nacional">
-        <h1>POLIC&Iacute;A NACIONAL</h1>
-        <p>Sistema Parte de Fuerza</p>
+        <img class="login-hero" src="/static/login_parte_fuerza.png" alt="Parte de Fuerza">
         {alert}
         <label>Usuario<input type="text" name="email" value="" autocomplete="username" required></label>
         <label>Contrase&ntilde;a<input type="password" name="password" required></label>

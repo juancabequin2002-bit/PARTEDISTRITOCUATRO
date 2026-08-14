@@ -637,13 +637,22 @@ label {
 }
 
 .login-card {
-    width: min(430px, calc(100vw - 32px));
+    width: min(760px, calc(100vw - 32px));
     display: grid;
     gap: 14px;
-    padding: 32px;
-    border-radius: 10px;
+    padding: 18px 22px 26px;
+    border-radius: 14px;
     background: #fff;
     box-shadow: 0 24px 70px rgba(0, 0, 0, .25);
+}
+
+.login-hero {
+    width: 100%;
+    display: block;
+    border-radius: 12px;
+    object-fit: contain;
+    background: #fff;
+    margin-bottom: 4px;
 }
 
 .login-card h1,
