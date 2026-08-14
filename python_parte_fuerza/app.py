@@ -19,7 +19,8 @@ from xml.etree import ElementTree as ET
 from zipfile import ZipFile
 
 BASE_DIR = Path(__file__).parent
-DATA_DIR = Path(os.environ.get("DATA_DIR", BASE_DIR))
+DEFAULT_DATA_DIR = Path("/var/data") if Path("/var/data").exists() else BASE_DIR
+DATA_DIR = Path(os.environ.get("DATA_DIR", DEFAULT_DATA_DIR))
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 DB_PATH = DATA_DIR / "parte_fuerza.db"
 STATIC_DIR = BASE_DIR / "static"
@@ -472,16 +473,9 @@ def import_excel_personal(conn):
         categoria = GRADO_CATEGORIA.get(grado.upper(), "patrulleros")
         conn.execute(
             """
-            INSERT INTO funcionarios (cedula, grado, nombres, apellidos, categoria, unidad_id, cargo, estado)
+            INSERT OR IGNORE INTO funcionarios
+                (cedula, grado, nombres, apellidos, categoria, unidad_id, cargo, estado)
             VALUES (?, ?, ?, ?, ?, ?, ?, 'activo')
-            ON CONFLICT(cedula) DO UPDATE SET
-                grado = excluded.grado,
-                nombres = excluded.nombres,
-                apellidos = excluded.apellidos,
-                categoria = excluded.categoria,
-                unidad_id = excluded.unidad_id,
-                cargo = excluded.cargo,
-                estado = 'activo'
             """,
             (cedula, grado, nombres, apellidos, categoria, unidad_ids[unidad], row.get("CARGO", "")),
         )
@@ -490,9 +484,8 @@ def import_excel_personal(conn):
         username, password = unit_credentials(unidad)
         conn.execute(
             """
-            INSERT INTO usuarios (nombre, email, password, rol, unidad_id)
+            INSERT OR IGNORE INTO usuarios (nombre, email, password, rol, unidad_id)
             VALUES (?, ?, ?, 'unidad', ?)
-            ON CONFLICT(email) DO UPDATE SET nombre = excluded.nombre, password = excluded.password, rol = 'unidad', unidad_id = excluded.unidad_id
             """,
             (unidad, username, hash_password(password), unidad_ids[unidad]),
         )
@@ -1478,6 +1471,9 @@ def diagnostico_data():
         "unidades": total_unidades,
         "excel": SOURCE_XLSX.exists(),
         "seed": SOURCE_SEED.exists(),
+        "base_datos": str(DB_PATH),
+        "carpeta_datos": str(DATA_DIR),
+        "persistencia_render": str(DATA_DIR).replace("\\", "/").startswith("/var/data"),
         "detalle": detalle,
     }
 
