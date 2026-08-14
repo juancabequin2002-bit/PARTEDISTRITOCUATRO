@@ -565,6 +565,18 @@ label {
     color: var(--green-800);
 }
 
+.security-badge {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid #9ccbaa;
+    border-radius: 999px;
+    padding: 7px 12px;
+    background: var(--green-soft);
+    color: var(--green-900);
+    font-weight: 900;
+    font-size: 13px;
+}
+
 .actions-panel .btn {
     margin-bottom: 14px;
 }

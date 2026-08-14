@@ -1,10 +1,12 @@
 import json
+import hashlib
 import html
 import os
 import re
 import secrets
 import sqlite3
 import struct
+import time
 import unicodedata
 import zlib
 from datetime import datetime
@@ -23,8 +25,12 @@ SOURCE_XLSX = BASE_DIR.parent / "personal del distrito.xlsx"
 SOURCE_SEED = BASE_DIR / "personal_seed.json"
 VIDEO_FONDO = Path(r"C:\Users\juanc\Documents\JUAN POLICIA\210797_WxilRM9i.mp4")
 SESSIONS = {}
+LOGIN_ATTEMPTS = {}
 ADMIN_USER = "DetolPurificacion"
 ADMIN_PASSWORD = "Distrito4**"
+MAX_LOGIN_ATTEMPTS = 5
+LOGIN_WINDOW_SECONDS = 600
+LOGIN_BLOCK_SECONDS = 900
 
 CATEGORIAS = {
     "oficiales": "Oficiales",
@@ -128,6 +134,55 @@ def ordenar_funcionarios(funcionarios, por_unidad=False):
     return sorted(funcionarios, key=clave)
 
 
+def hash_password(password):
+    salt = secrets.token_hex(16)
+    digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), 120000)
+    return f"pbkdf2_sha256${salt}${digest.hex()}"
+
+
+def verify_password(password, stored):
+    stored = stored or ""
+    if stored.startswith("pbkdf2_sha256$"):
+        try:
+            _, salt, digest = stored.split("$", 2)
+        except ValueError:
+            return False
+        check = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), 120000).hex()
+        return secrets.compare_digest(check, digest)
+    return secrets.compare_digest(password, stored)
+
+
+def record_security_event(ip, usuario, evento, detalle):
+    with db() as conn:
+        conn.execute(
+            """
+            INSERT INTO security_events (fecha, ip, usuario, evento, detalle)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (datetime.now().isoformat(timespec="seconds"), ip[:80], (usuario or "")[:120], evento[:80], detalle[:500]),
+        )
+
+
+def is_suspicious_path(path, query=""):
+    value = f"{path}?{query}".lower()
+    patterns = [
+        "../",
+        "..%2f",
+        "%2e%2e",
+        ".env",
+        ".git",
+        "wp-admin",
+        "wp-login",
+        "phpmyadmin",
+        "<script",
+        "%3cscript",
+        "union%20select",
+        "select%20",
+        "/etc/passwd",
+    ]
+    return any(pattern in value for pattern in patterns)
+
+
 def db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -194,6 +249,15 @@ def init_db():
                 observaciones TEXT,
                 estado TEXT NOT NULL DEFAULT 'activa'
             );
+
+            CREATE TABLE IF NOT EXISTS security_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                fecha TEXT NOT NULL,
+                ip TEXT NOT NULL,
+                usuario TEXT,
+                evento TEXT NOT NULL,
+                detalle TEXT NOT NULL
+            );
             """
         )
 
@@ -207,11 +271,11 @@ def init_db():
 
         conn.execute(
             "INSERT OR IGNORE INTO usuarios (id, nombre, email, password, rol, unidad_id) VALUES (1, 'Administrador', ?, ?, 'admin', NULL)",
-            (ADMIN_USER, ADMIN_PASSWORD),
+            (ADMIN_USER, hash_password(ADMIN_PASSWORD)),
         )
         conn.execute(
             "UPDATE usuarios SET nombre = 'Administrador', email = ?, password = ?, rol = 'admin', unidad_id = NULL WHERE id = 1",
-            (ADMIN_USER, ADMIN_PASSWORD),
+            (ADMIN_USER, hash_password(ADMIN_PASSWORD)),
         )
         conn.execute(
             "INSERT OR IGNORE INTO unidades (id, nombre, estado) VALUES (1, 'Distrito Cuatro de Polic&iacute;a Purificación', 'activa')"
@@ -404,7 +468,7 @@ def import_excel_personal(conn):
             VALUES (?, ?, ?, 'unidad', ?)
             ON CONFLICT(email) DO UPDATE SET nombre = excluded.nombre, password = excluded.password, rol = 'unidad', unidad_id = excluded.unidad_id
             """,
-            (unidad, username, password, unidad_ids[unidad]),
+            (unidad, username, hash_password(password), unidad_ids[unidad]),
         )
 
 
@@ -936,6 +1000,7 @@ def layout(content, user=None):
     user = user or {}
     unit_name = get_unit_name(user.get("unidad_id")) if user.get("rol") == "unidad" else "ADMINISTRADOR GENERAL"
     report_link = '<a class="nav-link" href="/historial"><span class="nav-ico">RP</span><span>Reportes de Unidades</span></a>' if user.get("rol") == "admin" else ""
+    security_link = '<a class="nav-link" href="/seguridad"><span class="nav-ico">SG</span><span>Seguridad</span></a>' if user.get("rol") == "admin" else ""
     return page_shell(
         "Parte de Fuerza",
         f"""
@@ -953,6 +1018,7 @@ def layout(content, user=None):
         <a class="nav-link" href="/parte#novedades"><span class="nav-ico">NV</span><span>Novedades</span></a>
         <a class="nav-link" href="/funcionarios"><span class="nav-ico">FN</span><span>Funcionarios</span></a>
         {report_link}
+        {security_link}
         <a class="nav-link logout-link" href="/logout"><span class="nav-ico">CS</span><span>Cerrar Sesi&oacute;n</span></a>
     </aside>
     <main class="content">{content}</main>
@@ -1292,8 +1358,73 @@ def diagnostico_data():
     }
 
 
+def seguridad_page(user=None):
+    user = user or {}
+    if user.get("rol") != "admin":
+        return layout("<section class='panel'>No autorizado.</section>", user)
+    with db() as conn:
+        eventos = rows_dict(
+            conn.execute(
+                """
+                SELECT fecha, ip, usuario, evento, detalle
+                FROM security_events
+                ORDER BY id DESC
+                LIMIT 100
+                """
+            )
+        )
+    rows = "".join(
+        f"<tr><td>{h(e['fecha'])}</td><td>{h(e['ip'])}</td><td>{h(e['usuario'])}</td><td>{h(e['evento'])}</td><td>{h(e['detalle'])}</td></tr>"
+        for e in eventos
+    )
+    content = f"""
+<section class="panel">
+    <div class="section-head"><h2>Seguridad del sistema</h2><span class="security-badge">{len(eventos)} eventos recientes</span></div>
+    <div class="alert info">Aqu&iacute; se registran intentos fallidos, bloqueos temporales, rutas sospechosas y accesos no autorizados.</div>
+    <table class="data-table"><thead><tr><th>Fecha</th><th>IP</th><th>Usuario</th><th>Evento</th><th>Detalle</th></tr></thead><tbody>{rows or '<tr><td colspan="5">No hay eventos de seguridad registrados.</td></tr>'}</tbody></table>
+</section>
+"""
+    return layout(content, user)
+
+
 
 class Handler(BaseHTTPRequestHandler):
+    def client_ip(self):
+        forwarded = self.headers.get("X-Forwarded-For", "")
+        if forwarded:
+            return forwarded.split(",")[0].strip()
+        return self.client_address[0] if self.client_address else ""
+
+    def add_security_headers(self):
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("Referrer-Policy", "same-origin")
+        self.send_header("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        self.send_header(
+            "Content-Security-Policy",
+            "default-src 'self'; img-src 'self' data:; media-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'self'",
+        )
+
+    def is_login_blocked(self, ip):
+        now = time.time()
+        attempts = [item for item in LOGIN_ATTEMPTS.get(ip, []) if now - item < LOGIN_WINDOW_SECONDS]
+        LOGIN_ATTEMPTS[ip] = attempts
+        return len(attempts) >= MAX_LOGIN_ATTEMPTS
+
+    def register_login_failure(self, ip):
+        now = time.time()
+        attempts = [item for item in LOGIN_ATTEMPTS.get(ip, []) if now - item < LOGIN_WINDOW_SECONDS]
+        attempts.append(now)
+        LOGIN_ATTEMPTS[ip] = attempts
+
+    def valid_post_origin(self):
+        origin = self.headers.get("Origin")
+        if not origin:
+            return True
+        host = self.headers.get("Host", "")
+        parsed = urlparse(origin)
+        return parsed.netloc == host
+
     def is_logged(self):
         cookie = cookies.SimpleCookie(self.headers.get("Cookie"))
         token = cookie.get("session")
@@ -1313,6 +1444,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
         self.send_header("Pragma", "no-cache")
         self.send_header("Content-Length", str(len(body)))
+        self.add_security_headers()
         for key, value in (headers or {}).items():
             self.send_header(key, value)
         self.end_headers()
@@ -1323,6 +1455,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
+        self.add_security_headers()
         self.end_headers()
         self.wfile.write(body)
 
@@ -1333,12 +1466,14 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(pdf)))
         self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
         self.send_header("Pragma", "no-cache")
+        self.add_security_headers()
         self.end_headers()
         self.wfile.write(pdf)
 
     def redirect(self, location):
         self.send_response(302)
         self.send_header("Location", location)
+        self.add_security_headers()
         self.end_headers()
 
     def read_body(self):
@@ -1348,14 +1483,15 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         parsed = urlparse(self.path)
         path = parsed.path
+        if is_suspicious_path(path, parsed.query):
+            record_security_event(self.client_ip(), "", "Ruta sospechosa", self.path)
+            return self.send_html("No encontrado", 404)
         if path == "/up":
             return self.send_json({"status": "ok"})
-        if path == "/diagnostico":
-            return self.send_json(diagnostico_data())
         if path.startswith("/static/"):
             return self.static(path)
         if path == "/logout":
-            return self.send_html("", 302, {"Set-Cookie": "session=; Max-Age=0; Path=/", "Location": "/"})
+            return self.send_html("", 302, {"Set-Cookie": "session=; Max-Age=0; Path=/; HttpOnly; SameSite=Strict", "Location": "/"})
         if not self.is_logged() and path != "/":
             return self.redirect("/")
         user = self.current_user()
@@ -1365,10 +1501,21 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_html(parte_page(user))
         if path == "/funcionarios":
             return self.send_html(funcionarios_page(user))
+        if path == "/diagnostico":
+            if user.get("rol") != "admin":
+                record_security_event(self.client_ip(), user.get("email", ""), "Acceso no autorizado", path)
+                return self.redirect("/parte")
+            return self.send_json(diagnostico_data())
         if path == "/historial":
             if user.get("rol") != "admin":
+                record_security_event(self.client_ip(), user.get("email", ""), "Acceso no autorizado", path)
                 return self.redirect("/parte")
             return self.send_html(historial_page(user, parsed.query))
+        if path == "/seguridad":
+            if user.get("rol") != "admin":
+                record_security_event(self.client_ip(), user.get("email", ""), "Acceso no autorizado", path)
+                return self.redirect("/parte")
+            return self.send_html(seguridad_page(user))
         if path == "/reporte":
             parte_id = parse_qs(parsed.query).get("id", [""])[0]
             return self.send_html(reporte_page(parte_id, user))
@@ -1384,6 +1531,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_video()
         if path == "/pdf-todos":
             if user.get("rol") != "admin":
+                record_security_event(self.client_ip(), user.get("email", ""), "Acceso no autorizado", path)
                 return self.redirect("/parte")
             reportes = reportes_filtrados(parsed.query)
             return self.send_pdf(pdf_todos(reportes), "reportes_partes.pdf")
@@ -1409,6 +1557,7 @@ class Handler(BaseHTTPRequestHandler):
         if range_header:
             self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
         self.send_header("Cache-Control", "no-store")
+        self.add_security_headers()
         self.end_headers()
         with open(path, "rb") as f:
             f.seek(start)
@@ -1422,19 +1571,30 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         parsed = urlparse(self.path)
+        if not self.valid_post_origin():
+            record_security_event(self.client_ip(), "", "Origen POST bloqueado", self.headers.get("Origin", ""))
+            return self.send_html("No autorizado", 403)
         if parsed.path == "/login":
+            ip = self.client_ip()
             form = parse_qs(self.read_body())
             email = form.get("email", [""])[0].strip()
             if email.upper() == ADMIN_USER.upper():
                 email = ADMIN_USER
             password = form.get("password", [""])[0]
+            if self.is_login_blocked(ip):
+                record_security_event(ip, email, "Login bloqueado", "Demasiados intentos fallidos.")
+                return self.send_html(login_page("Acceso bloqueado temporalmente por varios intentos fallidos."), 429)
             with db() as conn:
-                user = conn.execute("SELECT * FROM usuarios WHERE email = ? AND password = ?", (email, password)).fetchone()
-            if not user:
+                user = conn.execute("SELECT * FROM usuarios WHERE email = ?", (email,)).fetchone()
+            if not user or not verify_password(password, user["password"]):
+                self.register_login_failure(ip)
+                record_security_event(ip, email, "Login fallido", "Usuario o contrasena incorrectos.")
                 return self.send_html(login_page("Credenciales no v&aacute;lidas."))
+            LOGIN_ATTEMPTS.pop(ip, None)
             token = secrets.token_urlsafe(24)
             SESSIONS[token] = row_dict(user)
-            return self.send_html("", 302, {"Set-Cookie": f"session={token}; Path=/; HttpOnly", "Location": "/parte"})
+            secure = "; Secure" if self.headers.get("X-Forwarded-Proto", "").lower() == "https" else ""
+            return self.send_html("", 302, {"Set-Cookie": f"session={token}; Path=/; HttpOnly; SameSite=Strict{secure}", "Location": "/parte"})
 
         if not self.is_logged():
             return self.send_json({"error": "No autenticado"}, 401)
@@ -1442,6 +1602,7 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path == "/eliminar-parte":
             user = self.current_user()
             if user.get("rol") != "admin":
+                record_security_event(self.client_ip(), user.get("email", ""), "Acceso no autorizado", parsed.path)
                 return self.send_html("No autorizado", 403)
             form = parse_qs(self.read_body())
             parte_id = form.get("id", [""])[0]
@@ -1554,6 +1715,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
         self.send_header("Pragma", "no-cache")
         self.send_header("Content-Length", str(len(body)))
+        self.add_security_headers()
         self.end_headers()
         self.wfile.write(body)
 
