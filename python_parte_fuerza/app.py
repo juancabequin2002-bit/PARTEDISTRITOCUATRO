@@ -1376,7 +1376,7 @@ def historial_page(user=None, query=""):
         disponible = max(0, efectiva - parte["novedades"])
         rows += f"""
         <tr>
-            <td>{h(parte['fecha'])}</td><td>{h(parte['unidad'])}</td><td>{efectiva}</td><td>{parte['novedades']}</td><td>{disponible}</td>
+            <td>{h(parte['fecha'])}</td><td>{h(parte['unidad'])}</td><td>{h(parte['comandante'])}</td><td>{efectiva}</td><td>{parte['novedades']}</td><td>{disponible}</td>
             <td class="actions-inline">
                 <a class="btn small outline" href="/reporte?id={parte['id']}">Ver</a>
                 <a class="btn small primary" href="/pdf?id={parte['id']}">PDF</a>
@@ -1400,7 +1400,7 @@ def historial_page(user=None, query=""):
 <section class="panel">
     <div class="section-head"><h2>Reportes de partes</h2><a class="btn primary" href="/parte">Nuevo Parte</a></div>
     {filters}
-    <table class="data-table"><thead><tr><th>Fecha</th><th>Unidad</th><th>Fuerza efectiva</th><th>Novedades</th><th>Disponible</th><th>Acci&oacute;n</th></tr></thead><tbody>{rows or '<tr><td colspan="6">No hay partes guardados.</td></tr>'}</tbody></table>
+    <table class="data-table"><thead><tr><th>Fecha</th><th>Unidad</th><th>Comandante quien reporta</th><th>Fuerza efectiva</th><th>Novedades</th><th>Disponible</th><th>Acci&oacute;n</th></tr></thead><tbody>{rows or '<tr><td colspan="7">No hay partes guardados.</td></tr>'}</tbody></table>
 </section>
 """
     return layout(content, user)
