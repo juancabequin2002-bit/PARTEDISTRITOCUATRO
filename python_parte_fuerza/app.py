@@ -1325,7 +1325,7 @@ class Handler(BaseHTTPRequestHandler):
     def send_pdf(self, pdf, filename):
         self.send_response(200)
         self.send_header("Content-Type", "application/pdf")
-        self.send_header("Content-Disposition", f'inline; filename="{filename}"')
+        self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
         self.send_header("Content-Length", str(len(pdf)))
         self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
         self.send_header("Pragma", "no-cache")
