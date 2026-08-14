@@ -20,6 +20,7 @@ BASE_DIR = Path(__file__).parent
 DB_PATH = BASE_DIR / "parte_fuerza.db"
 STATIC_DIR = BASE_DIR / "static"
 SOURCE_XLSX = BASE_DIR.parent / "personal del distrito.xlsx"
+SOURCE_SEED = BASE_DIR / "personal_seed.json"
 VIDEO_FONDO = Path(r"C:\Users\juanc\Documents\JUAN POLICIA\210797_WxilRM9i.mp4")
 SESSIONS = {}
 
@@ -341,11 +342,13 @@ def unit_credentials(unit_name):
 
 def import_excel_personal(conn):
     rows = read_xlsx_rows(SOURCE_XLSX)
+    if not rows and SOURCE_SEED.exists():
+        rows = json.loads(SOURCE_SEED.read_text(encoding="utf-8"))
     if not rows:
         return
 
     unidades = sorted({row.get("UNIDAD", "") for row in rows if row.get("UNIDAD", "")})
-    conn.execute("DELETE FROM funcionarios WHERE cedula IS NULL OR cedula = ''")
+    conn.execute("DELETE FROM funcionarios")
     conn.execute("DELETE FROM usuarios WHERE rol = 'unidad'")
     for unidad in unidades:
         conn.execute("INSERT OR IGNORE INTO unidades (nombre, estado) VALUES (?, 'activa')", (unidad,))
@@ -370,6 +373,8 @@ def import_excel_personal(conn):
         cedula = row.get("CEDULA", "")
         if not unidad or not grado or not nombres or not apellidos:
             continue
+        if not cedula:
+            cedula = texto_orden(f"{unidad}-{grado}-{nombres}-{apellidos}")
         categoria = GRADO_CATEGORIA.get(grado.upper(), "patrulleros")
         conn.execute(
             """
@@ -1259,6 +1264,30 @@ def reporte_page(parte_id, user=None):
     return layout(content, user)
 
 
+def diagnostico_data():
+    with db() as conn:
+        detalle = rows_dict(
+            conn.execute(
+                """
+                SELECT u.nombre, COUNT(f.id) funcionarios
+                FROM unidades u
+                LEFT JOIN funcionarios f ON f.unidad_id = u.id
+                GROUP BY u.id
+                ORDER BY u.nombre
+                """
+            )
+        )
+        total_funcionarios = conn.execute("SELECT COUNT(*) total FROM funcionarios").fetchone()["total"]
+        total_unidades = conn.execute("SELECT COUNT(*) total FROM unidades").fetchone()["total"]
+    return {
+        "funcionarios": total_funcionarios,
+        "unidades": total_unidades,
+        "excel": SOURCE_XLSX.exists(),
+        "seed": SOURCE_SEED.exists(),
+        "detalle": detalle,
+    }
+
+
 
 class Handler(BaseHTTPRequestHandler):
     def is_logged(self):
@@ -1317,6 +1346,8 @@ class Handler(BaseHTTPRequestHandler):
         path = parsed.path
         if path == "/up":
             return self.send_json({"status": "ok"})
+        if path == "/diagnostico":
+            return self.send_json(diagnostico_data())
         if path.startswith("/static/"):
             return self.static(path)
         if path == "/logout":
