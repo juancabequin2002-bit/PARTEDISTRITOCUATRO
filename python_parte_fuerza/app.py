@@ -1048,7 +1048,7 @@ def layout(content, user=None):
 <div class="app-shell">
     <aside class="sidebar no-print">
         <a class="nav-link active" href="/parte"><span class="nav-ico">PF</span><span>Parte de Fuerza</span></a>
-        <a class="nav-link" href="/parte#novedades"><span class="nav-ico">NV</span><span>Novedades</span></a>
+        <a class="nav-link" href="/novedades"><span class="nav-ico">NV</span><span>Novedades</span></a>
         <a class="nav-link" href="/funcionarios"><span class="nav-ico">FN</span><span>Funcionarios</span></a>
         {report_link}
         {ingresos_link}
@@ -1255,6 +1255,82 @@ def funcionarios_page(user=None):
 <section class="panel">
     <h2>Funcionarios</h2>
     <table class="data-table"><thead><tr><th>Grado</th><th>Funcionario</th><th>Categor&iacute;a</th><th>Unidad</th><th>Estado</th></tr></thead><tbody>{rows}</tbody></table>
+</section>
+"""
+    return layout(content, user)
+
+
+def novedades_page(user=None, query=""):
+    user = user or {}
+    params = parse_qs(query)
+    fecha = params.get("fecha", [""])[0] or datetime.now().date().isoformat()
+    where = ["n.estado = 'activa'", "n.fecha_inicio <= ?", "n.fecha_fin >= ?"]
+    values = [fecha, fecha]
+    if user.get("rol") == "unidad":
+        where.append("p.unidad_id = ?")
+        values.append(user.get("unidad_id"))
+    where_sql = " AND ".join(where)
+
+    with db() as conn:
+        novedades = rows_dict(
+            conn.execute(
+                f"""
+                SELECT
+                    p.fecha parte_fecha,
+                    p.hora_parte,
+                    p.comandante,
+                    up.nombre unidad_parte,
+                    n.tipo_novedad,
+                    n.fecha_inicio,
+                    n.hora_inicio,
+                    n.fecha_fin,
+                    n.hora_fin,
+                    n.dias_calculados,
+                    n.solicitud_psi,
+                    f.grado,
+                    f.nombres,
+                    f.apellidos,
+                    f.categoria,
+                    uf.nombre unidad_funcionario
+                FROM novedades n
+                JOIN partes p ON p.id = n.parte_id
+                JOIN unidades up ON up.id = p.unidad_id
+                JOIN funcionarios f ON f.id = n.funcionario_id
+                JOIN unidades uf ON uf.id = f.unidad_id
+                WHERE {where_sql}
+                ORDER BY up.nombre, f.categoria, f.grado, f.apellidos, f.nombres
+                """,
+                values,
+            )
+        )
+
+    rows = ""
+    for novedad in novedades:
+        funcionario = f"{novedad['grado']} {novedad['nombres']} {novedad['apellidos']}"
+        rows += f"""
+        <tr>
+            <td>{h(novedad['unidad_parte'])}</td>
+            <td>{h(novedad['comandante'])}</td>
+            <td>{h(novedad['tipo_novedad'])}</td>
+            <td>{h(funcionario)}</td>
+            <td>{h(CATEGORIAS.get(novedad['categoria'], novedad['categoria']))}</td>
+            <td>{h(novedad['unidad_funcionario'])}</td>
+            <td>{h(novedad['fecha_inicio'])} {h(novedad['hora_inicio'])}</td>
+            <td>{h(novedad['fecha_fin'])} {h(novedad['hora_fin'])}</td>
+            <td>{h(novedad['dias_calculados'])}</td>
+            <td>{h(novedad.get('solicitud_psi') or '-')}</td>
+        </tr>
+        """
+
+    content = f"""
+<section class="panel">
+    <div class="section-head"><h2>Novedades por fecha</h2><span class="security-badge">{len(novedades)} funcionarios en novedad</span></div>
+    <form method="GET" action="/novedades" class="filters">
+        <label>Fecha a consultar<input type="date" name="fecha" value="{h(fecha)}"></label>
+        <button class="btn primary">Buscar novedades</button>
+    </form>
+    <div class="alert info">La consulta muestra las novedades vigentes para la fecha seleccionada seg&uacute;n los partes guardados por los comandantes.</div>
+    <table class="data-table"><thead><tr><th>Unidad que reporta</th><th>Comandante</th><th>Tipo</th><th>Funcionario</th><th>Categor&iacute;a</th><th>Unidad funcionario</th><th>Inicio</th><th>Fin</th><th>D&iacute;as</th><th>PSI</th></tr></thead><tbody>{rows or '<tr><td colspan="10">No hay funcionarios en novedad para esta fecha.</td></tr>'}</tbody></table>
 </section>
 """
     return layout(content, user)
@@ -1570,6 +1646,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_html(login_page() if not self.is_logged() else parte_page(user))
         if path == "/parte":
             return self.send_html(parte_page(user))
+        if path == "/novedades":
+            return self.send_html(novedades_page(user, parsed.query))
         if path == "/funcionarios":
             return self.send_html(funcionarios_page(user))
         if path == "/diagnostico":
