@@ -1031,6 +1031,7 @@ def pdf_todos(reportes):
 def layout(content, user=None):
     user = user or {}
     unit_name = get_unit_name(user.get("unidad_id")) if user.get("rol") == "unidad" else "ADMINISTRADOR GENERAL"
+    novedades_link = '<a class="nav-link" href="/novedades"><span class="nav-ico">NV</span><span>Novedades</span></a>' if user.get("rol") == "admin" else ""
     report_link = '<a class="nav-link" href="/historial"><span class="nav-ico">RP</span><span>Reportes de Unidades</span></a>' if user.get("rol") == "admin" else ""
     ingresos_link = '<a class="nav-link" href="/ingresos"><span class="nav-ico">IN</span><span>Ingresos</span></a>' if user.get("rol") == "admin" else ""
     security_link = '<a class="nav-link" href="/seguridad"><span class="nav-ico">SG</span><span>Seguridad</span></a>' if user.get("rol") == "admin" else ""
@@ -1048,7 +1049,7 @@ def layout(content, user=None):
 <div class="app-shell">
     <aside class="sidebar no-print">
         <a class="nav-link active" href="/parte"><span class="nav-ico">PF</span><span>Parte de Fuerza</span></a>
-        <a class="nav-link" href="/novedades"><span class="nav-ico">NV</span><span>Novedades</span></a>
+        {novedades_link}
         <a class="nav-link" href="/funcionarios"><span class="nav-ico">FN</span><span>Funcionarios</span></a>
         {report_link}
         {ingresos_link}
@@ -1639,6 +1640,9 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/parte":
             return self.send_html(parte_page(user))
         if path == "/novedades":
+            if user.get("rol") != "admin":
+                record_security_event(self.client_ip(), user.get("email", ""), "Acceso no autorizado", path)
+                return self.redirect("/parte")
             return self.send_html(novedades_page(user, parsed.query))
         if path == "/funcionarios":
             return self.send_html(funcionarios_page(user))
