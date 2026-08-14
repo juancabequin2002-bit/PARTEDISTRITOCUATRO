@@ -1139,7 +1139,6 @@ def pdf_reporte_general(data):
                 novedad["unidad_reporta"],
                 novedad["tipo_novedad"],
                 funcionario,
-                CATEGORIAS.get(novedad["categoria"], novedad["categoria"]),
                 novedad["unidad_funcionario"],
                 f"{novedad['fecha_inicio']} {novedad['hora_inicio']}",
                 f"{novedad['fecha_fin']} {novedad['hora_fin']}",
@@ -1148,11 +1147,11 @@ def pdf_reporte_general(data):
             ]
         )
     if not nov_rows:
-        nov_rows = [["Sin novedades registradas para esta fecha", "-", "-", "-", "-", "-", "-", "-", "-"]]
+        nov_rows = [["Sin novedades registradas para esta fecha", "-", "-", "-", "-", "-", "-", "-"]]
     pdf.table(
-        ["Unidad reporta", "Tipo", "Funcionario", "Categoria", "Unidad funcionario", "Inicio", "Fin", "Dias", "PSI"],
+        ["Unidad reporta", "Tipo", "Funcionario", "Unidad funcionario", "Inicio", "Fin", "Dias", "PSI"],
         nov_rows,
-        [85, 58, 115, 70, 90, 65, 65, 35, 30],
+        [95, 60, 135, 105, 70, 70, 35, 30],
         hs=7,
         cs=7,
     )
@@ -1587,7 +1586,7 @@ def reporte_general_page(user=None, query=""):
             <td>{h(novedad.get('solicitud_psi') or '-')}</td>
         </tr>"""
     if not nov_rows:
-        nov_rows = "<tr><td colspan='10'>No hay novedades registradas para esta fecha.</td></tr>"
+        nov_rows = "<tr><td colspan='9'>No hay novedades registradas para esta fecha.</td></tr>"
 
     content = f"""
 <section class="panel report-view">
@@ -1609,7 +1608,7 @@ def reporte_general_page(user=None, query=""):
     <h2>Fuerza disponible consolidada</h2>
     <table class="data-table"><thead><tr><th>Categor&iacute;a</th><th>Efectiva</th><th>En novedades</th><th>Disponible</th></tr></thead><tbody>{fuerza_rows}</tbody></table>
     <h2>Novedades del d&iacute;a</h2>
-    <table class="data-table"><thead><tr><th>Unidad que reporta</th><th>Comandante</th><th>Tipo</th><th>Funcionario</th><th>Categor&iacute;a</th><th>Unidad funcionario</th><th>Inicio</th><th>Fin</th><th>D&iacute;as</th><th>PSI</th></tr></thead><tbody>{nov_rows}</tbody></table>
+    <table class="data-table"><thead><tr><th>Unidad que reporta</th><th>Comandante</th><th>Tipo</th><th>Funcionario</th><th>Unidad funcionario</th><th>Inicio</th><th>Fin</th><th>D&iacute;as</th><th>PSI</th></tr></thead><tbody>{nov_rows}</tbody></table>
 </section>
 """
     return layout(content, user)
