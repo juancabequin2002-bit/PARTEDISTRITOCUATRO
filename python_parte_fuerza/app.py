@@ -656,6 +656,62 @@ def reportes_filtrados(query):
     return [reporte_data(parte_id) for parte_id in ids if reporte_data(parte_id)]
 
 
+def reporte_general_data(fecha):
+    with db() as conn:
+        partes = rows_dict(
+            conn.execute(
+                """
+                SELECT p.id
+                FROM partes p
+                WHERE p.fecha = ?
+                ORDER BY p.fecha DESC, p.id DESC
+                """,
+                (fecha,),
+            )
+        )
+    reportes = [reporte_data(parte["id"]) for parte in partes]
+    reportes = [reporte for reporte in reportes if reporte]
+    efectiva = {key: 0 for key in CATEGORIAS}
+    en_novedad = {key: 0 for key in CATEGORIAS}
+    disponible = {key: 0 for key in CATEGORIAS}
+    novedades = []
+    unidades = []
+    for reporte in reportes:
+        parte = reporte["parte"]
+        total_efectiva = sum(reporte["efectiva"].values())
+        total_novedades = sum(reporte["en_novedad"].values())
+        total_disponible = sum(reporte["disponible"].values())
+        unidades.append(
+            {
+                "fecha": parte["fecha"],
+                "hora": parte["hora_parte"],
+                "unidad": parte["unidad"],
+                "comandante": parte["comandante"],
+                "efectiva": total_efectiva,
+                "novedades": total_novedades,
+                "disponible": total_disponible,
+            }
+        )
+        for key in CATEGORIAS:
+            efectiva[key] += reporte["efectiva"][key]
+            en_novedad[key] += reporte["en_novedad"][key]
+            disponible[key] += reporte["disponible"][key]
+        for novedad in reporte["novedades"]:
+            item = dict(novedad)
+            item["unidad_reporta"] = parte["unidad"]
+            item["comandante"] = parte["comandante"]
+            novedades.append(item)
+    return {
+        "fecha": fecha,
+        "reportes": reportes,
+        "unidades": unidades,
+        "novedades": novedades,
+        "efectiva": efectiva,
+        "en_novedad": en_novedad,
+        "disponible": disponible,
+    }
+
+
 def pdf_escape(text):
     return str(text or "").replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
 
@@ -1034,10 +1090,80 @@ def pdf_todos(reportes):
     return pdf.build()
 
 
+def pdf_reporte_general(data):
+    pdf = PdfBuilder()
+    x0 = pdf.MARGIN
+    x1 = pdf.PAGE_W - pdf.MARGIN
+    total_efectiva = sum(data["efectiva"].values())
+    total_novedades = sum(data["en_novedad"].values())
+    total_disponible = sum(data["disponible"].values())
+
+    pdf.text(x0, pdf.y, "REPORTE GENERAL DEL DIA", "F2", 18)
+    pdf.y -= 20
+    pdf.label_text(x0, pdf.y, "Fecha:", data["fecha"], 11)
+    pdf.y -= 24
+    pdf.rect(x0, pdf.y, x1 - x0, 42, fill="0.933 0.973 0.949")
+    pdf.rect(x0, pdf.y, x1 - x0, 42)
+    pdf.label_text(x0 + 14, pdf.y - 16, "Fuerza efectiva total:", total_efectiva, 10)
+    pdf.label_text(x0 + 210, pdf.y - 16, "Total en novedades:", total_novedades, 10)
+    pdf.label_text(x0 + 400, pdf.y - 16, "Fuerza disponible:", total_disponible, 10)
+    pdf.y -= 62
+
+    pdf.heading("Partes reportados por unidades")
+    unidades_rows = [
+        [item["fecha"], item["hora"], item["unidad"], item["comandante"], item["efectiva"], item["novedades"], item["disponible"]]
+        for item in data["unidades"]
+    ] or [["-", "-", "Sin partes guardados para esta fecha", "-", "-", "-", "-"]]
+    pdf.table(
+        ["Fecha", "Hora", "Unidad", "Comandante", "Efectiva", "Novedades", "Disponible"],
+        unidades_rows,
+        [58, 45, 145, 135, 55, 60, 60],
+        hs=8,
+        cs=8,
+    )
+
+    pdf.heading("Fuerza disponible consolidada")
+    fuerza_rows = [
+        [CATEGORIAS[key], data["efectiva"][key], data["en_novedad"][key], data["disponible"][key]]
+        for key in CATEGORIAS
+    ]
+    fuerza_rows.append(["Total Distrito", total_efectiva, total_novedades, total_disponible])
+    pdf.table(["Categoria", "Efectiva", "En novedades", "Disponible"], fuerza_rows, [240, 100, 100, 100], hs=9, cs=9)
+
+    pdf.heading("Novedades del dia")
+    nov_rows = []
+    for novedad in data["novedades"]:
+        funcionario = f"{novedad['grado']} {novedad['nombres']} {novedad['apellidos']}"
+        nov_rows.append(
+            [
+                novedad["unidad_reporta"],
+                novedad["tipo_novedad"],
+                funcionario,
+                CATEGORIAS.get(novedad["categoria"], novedad["categoria"]),
+                novedad["unidad_funcionario"],
+                f"{novedad['fecha_inicio']} {novedad['hora_inicio']}",
+                f"{novedad['fecha_fin']} {novedad['hora_fin']}",
+                novedad["dias_calculados"],
+                novedad.get("solicitud_psi") or "-",
+            ]
+        )
+    if not nov_rows:
+        nov_rows = [["Sin novedades registradas para esta fecha", "-", "-", "-", "-", "-", "-", "-", "-"]]
+    pdf.table(
+        ["Unidad reporta", "Tipo", "Funcionario", "Categoria", "Unidad funcionario", "Inicio", "Fin", "Dias", "PSI"],
+        nov_rows,
+        [85, 58, 115, 70, 90, 65, 65, 35, 30],
+        hs=7,
+        cs=7,
+    )
+    return pdf.build()
+
+
 def layout(content, user=None):
     user = user or {}
     unit_name = get_unit_name(user.get("unidad_id")) if user.get("rol") == "unidad" else "ADMINISTRADOR GENERAL"
     novedades_link = '<a class="nav-link" href="/novedades"><span class="nav-ico">NV</span><span>Novedades</span></a>' if user.get("rol") == "admin" else ""
+    general_link = '<a class="nav-link" href="/reporte-general"><span class="nav-ico">RG</span><span>Reporte General</span></a>' if user.get("rol") == "admin" else ""
     report_link = '<a class="nav-link" href="/historial"><span class="nav-ico">RP</span><span>Reportes de Unidades</span></a>' if user.get("rol") == "admin" else ""
     ingresos_link = '<a class="nav-link" href="/ingresos"><span class="nav-ico">IN</span><span>Ingresos</span></a>' if user.get("rol") == "admin" else ""
     security_link = '<a class="nav-link" href="/seguridad"><span class="nav-ico">SG</span><span>Seguridad</span></a>' if user.get("rol") == "admin" else ""
@@ -1057,6 +1183,7 @@ def layout(content, user=None):
         <a class="nav-link active" href="/parte"><span class="nav-ico">PF</span><span>Parte de Fuerza</span></a>
         {novedades_link}
         <a class="nav-link" href="/funcionarios"><span class="nav-ico">FN</span><span>Funcionarios</span></a>
+        {general_link}
         {report_link}
         {ingresos_link}
         {security_link}
@@ -1402,9 +1529,87 @@ def historial_page(user=None, query=""):
     """
     content = f"""
 <section class="panel">
-    <div class="section-head"><h2>Reportes de partes</h2><a class="btn primary" href="/parte">Nuevo Parte</a></div>
+    <div class="section-head"><h2>Reportes de partes</h2><div class="actions-inline"><a class="btn outline" href="/reporte-general">Reporte General</a><a class="btn primary" href="/parte">Nuevo Parte</a></div></div>
     {filters}
     <table class="data-table"><thead><tr><th>Fecha</th><th>Unidad</th><th>Comandante quien reporta</th><th>Fuerza efectiva</th><th>Novedades</th><th>Disponible</th><th>Acci&oacute;n</th></tr></thead><tbody>{rows or '<tr><td colspan="7">No hay partes guardados.</td></tr>'}</tbody></table>
+</section>
+"""
+    return layout(content, user)
+
+
+def reporte_general_page(user=None, query=""):
+    user = user or {}
+    if user.get("rol") != "admin":
+        return layout("<section class='panel'>No autorizado.</section>", user)
+    params = parse_qs(query)
+    fecha = params.get("fecha", [""])[0] or datetime.now().strftime("%Y-%m-%d")
+    data = reporte_general_data(fecha)
+
+    total_efectiva = sum(data["efectiva"].values())
+    total_novedades = sum(data["en_novedad"].values())
+    total_disponible = sum(data["disponible"].values())
+
+    unidades_rows = ""
+    for item in data["unidades"]:
+        unidades_rows += f"""
+        <tr>
+            <td>{h(item['fecha'])}</td>
+            <td>{h(item['hora'])}</td>
+            <td>{h(item['unidad'])}</td>
+            <td>{h(item['comandante'])}</td>
+            <td>{item['efectiva']}</td>
+            <td>{item['novedades']}</td>
+            <td>{item['disponible']}</td>
+        </tr>"""
+    if not unidades_rows:
+        unidades_rows = "<tr><td colspan='7'>No hay partes guardados para esta fecha.</td></tr>"
+
+    fuerza_rows = "".join(
+        f"<tr><td>{label}</td><td>{data['efectiva'][key]}</td><td>{data['en_novedad'][key]}</td><td>{data['disponible'][key]}</td></tr>"
+        for key, label in CATEGORIAS.items()
+    )
+    fuerza_rows += f"<tr class='total-row'><td>Total Distrito</td><td>{total_efectiva}</td><td>{total_novedades}</td><td>{total_disponible}</td></tr>"
+
+    nov_rows = ""
+    for novedad in data["novedades"]:
+        funcionario = f"{novedad['grado']} {novedad['nombres']} {novedad['apellidos']}"
+        nov_rows += f"""
+        <tr>
+            <td>{h(novedad['unidad_reporta'])}</td>
+            <td>{h(novedad['comandante'])}</td>
+            <td>{h(novedad['tipo_novedad'])}</td>
+            <td>{h(funcionario)}</td>
+            <td>{h(CATEGORIAS.get(novedad['categoria'], novedad['categoria']))}</td>
+            <td>{h(novedad['unidad_funcionario'])}</td>
+            <td>{h(novedad['fecha_inicio'])} {h(novedad['hora_inicio'])}</td>
+            <td>{h(novedad['fecha_fin'])} {h(novedad['hora_fin'])}</td>
+            <td>{h(novedad['dias_calculados'])}</td>
+            <td>{h(novedad.get('solicitud_psi') or '-')}</td>
+        </tr>"""
+    if not nov_rows:
+        nov_rows = "<tr><td colspan='10'>No hay novedades registradas para esta fecha.</td></tr>"
+
+    content = f"""
+<section class="panel report-view">
+    <div class="section-head">
+        <h2>Reporte general del d&iacute;a</h2>
+        <a class="btn primary" href="/pdf-general?fecha={h(fecha)}">Descargar PDF general</a>
+    </div>
+    <form class="filters" method="GET" action="/reporte-general">
+        <label>Fecha del reporte<input type="date" name="fecha" value="{h(fecha)}"></label>
+        <button class="btn outline" type="submit">Consultar d&iacute;a</button>
+    </form>
+    <div class="summary-grid">
+        <div class="summary-item"><span>Fuerza efectiva total</span><strong>{total_efectiva}</strong></div>
+        <div class="summary-item"><span>Total en novedades</span><strong>{total_novedades}</strong></div>
+        <div class="summary-item success"><span>Fuerza disponible</span><strong>{total_disponible}</strong></div>
+    </div>
+    <h2>Partes reportados por unidades</h2>
+    <table class="data-table"><thead><tr><th>Fecha</th><th>Hora</th><th>Unidad</th><th>Comandante quien reporta</th><th>Efectiva</th><th>Novedades</th><th>Disponible</th></tr></thead><tbody>{unidades_rows}</tbody></table>
+    <h2>Fuerza disponible consolidada</h2>
+    <table class="data-table"><thead><tr><th>Categor&iacute;a</th><th>Efectiva</th><th>En novedades</th><th>Disponible</th></tr></thead><tbody>{fuerza_rows}</tbody></table>
+    <h2>Novedades del d&iacute;a</h2>
+    <table class="data-table"><thead><tr><th>Unidad que reporta</th><th>Comandante</th><th>Tipo</th><th>Funcionario</th><th>Categor&iacute;a</th><th>Unidad funcionario</th><th>Inicio</th><th>Fin</th><th>D&iacute;as</th><th>PSI</th></tr></thead><tbody>{nov_rows}</tbody></table>
 </section>
 """
     return layout(content, user)
@@ -1663,6 +1868,11 @@ class Handler(BaseHTTPRequestHandler):
                 record_security_event(self.client_ip(), user.get("email", ""), "Acceso no autorizado", path)
                 return self.redirect("/parte")
             return self.send_html(historial_page(user, parsed.query))
+        if path == "/reporte-general":
+            if user.get("rol") != "admin":
+                record_security_event(self.client_ip(), user.get("email", ""), "Acceso no autorizado", path)
+                return self.redirect("/parte")
+            return self.send_html(reporte_general_page(user, parsed.query))
         if path == "/ingresos":
             if user.get("rol") != "admin":
                 record_security_event(self.client_ip(), user.get("email", ""), "Acceso no autorizado", path)
@@ -1692,6 +1902,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self.redirect("/parte")
             reportes = reportes_filtrados(parsed.query)
             return self.send_pdf(pdf_todos(reportes), "reportes_partes.pdf")
+        if path == "/pdf-general":
+            if user.get("rol") != "admin":
+                record_security_event(self.client_ip(), user.get("email", ""), "Acceso no autorizado", path)
+                return self.redirect("/parte")
+            fecha = parse_qs(parsed.query).get("fecha", [""])[0] or datetime.now().strftime("%Y-%m-%d")
+            return self.send_pdf(pdf_reporte_general(reporte_general_data(fecha)), f"reporte_general_{fecha}.pdf")
         return self.send_html("No encontrado", 404)
 
     def send_video(self):
