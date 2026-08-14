@@ -23,6 +23,8 @@ SOURCE_XLSX = BASE_DIR.parent / "personal del distrito.xlsx"
 SOURCE_SEED = BASE_DIR / "personal_seed.json"
 VIDEO_FONDO = Path(r"C:\Users\juanc\Documents\JUAN POLICIA\210797_WxilRM9i.mp4")
 SESSIONS = {}
+ADMIN_USER = "DetolPurificacion"
+ADMIN_PASSWORD = "Distrito4**"
 
 CATEGORIAS = {
     "oficiales": "Oficiales",
@@ -204,10 +206,12 @@ def init_db():
         conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_funcionarios_cedula ON funcionarios(cedula)")
 
         conn.execute(
-            "INSERT OR IGNORE INTO usuarios (id, nombre, email, password, rol, unidad_id) VALUES (1, 'Administrador', 'admin', 'admin2026', 'admin', NULL)"
+            "INSERT OR IGNORE INTO usuarios (id, nombre, email, password, rol, unidad_id) VALUES (1, 'Administrador', ?, ?, 'admin', NULL)",
+            (ADMIN_USER, ADMIN_PASSWORD),
         )
         conn.execute(
-            "UPDATE usuarios SET nombre = 'Administrador', email = 'admin', password = 'admin2026', rol = 'admin', unidad_id = NULL WHERE id = 1"
+            "UPDATE usuarios SET nombre = 'Administrador', email = ?, password = ?, rol = 'admin', unidad_id = NULL WHERE id = 1",
+            (ADMIN_USER, ADMIN_PASSWORD),
         )
         conn.execute(
             "INSERT OR IGNORE INTO unidades (id, nombre, estado) VALUES (1, 'Distrito Cuatro de Polic&iacute;a Purificación', 'activa')"
@@ -1420,9 +1424,9 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         if parsed.path == "/login":
             form = parse_qs(self.read_body())
-            email = form.get("email", [""])[0].strip().upper()
-            if email == "ADMIN":
-                email = "admin"
+            email = form.get("email", [""])[0].strip()
+            if email.upper() == ADMIN_USER.upper():
+                email = ADMIN_USER
             password = form.get("password", [""])[0]
             with db() as conn:
                 user = conn.execute("SELECT * FROM usuarios WHERE email = ? AND password = ?", (email, password)).fetchone()
@@ -1559,6 +1563,6 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", "8000"))
     server = ThreadingHTTPServer(("0.0.0.0", port), Handler)
     print(f"Sistema Parte de Fuerza en http://0.0.0.0:{port}")
-    print("Admin: admin | Clave: admin2026")
+    print(f"Admin: {ADMIN_USER} | Clave: {ADMIN_PASSWORD}")
     print("Unidad ejemplo: ESTACIONPURIFICACION | Clave: PURIFICACION2026")
     server.serve_forever()

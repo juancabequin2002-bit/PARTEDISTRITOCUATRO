@@ -1,6 +1,6 @@
 USUARIOS DEL SISTEMA PARTE DE FUERZA
 
-Administrador - Usuario: admin - Clave: admin2026 - Rol: admin
+Administrador - Usuario: DetolPurificacion - Clave: Distrito4** - Rol: admin
 DEPARTAMENTO DE POLICIA TOLIMA - Usuario: DEPARTAMENTOTOLIMA - Clave: TOLIMA2026 - Rol: unidad
 DISTRITO CUATRO DE POLICIA PURIFICACION - Usuario: DISTRITOPURIFICACION - Clave: PURIFICACION2026 - Rol: unidad
 ESTACION DE POLICIA ALPUJARRA - Usuario: ESTACIONALPUJARRA - Clave: ALPUJARRA2026 - Rol: unidad
