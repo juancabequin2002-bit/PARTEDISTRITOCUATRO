@@ -19,7 +19,9 @@ from xml.etree import ElementTree as ET
 from zipfile import ZipFile
 
 BASE_DIR = Path(__file__).parent
-DB_PATH = BASE_DIR / "parte_fuerza.db"
+DATA_DIR = Path(os.environ.get("DATA_DIR", BASE_DIR))
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+DB_PATH = DATA_DIR / "parte_fuerza.db"
 STATIC_DIR = BASE_DIR / "static"
 SOURCE_XLSX = BASE_DIR.parent / "personal del distrito.xlsx"
 SOURCE_SEED = BASE_DIR / "personal_seed.json"
@@ -448,17 +450,8 @@ def import_excel_personal(conn):
         return
 
     unidades = sorted({row.get("UNIDAD", "") for row in rows if row.get("UNIDAD", "")})
-    conn.execute("DELETE FROM funcionarios")
-    conn.execute("DELETE FROM usuarios WHERE rol = 'unidad'")
     for unidad in unidades:
         conn.execute("INSERT OR IGNORE INTO unidades (nombre, estado) VALUES (?, 'activa')", (unidad,))
-
-    placeholders = ",".join("?" for _ in unidades)
-    if unidades:
-        conn.execute(
-            f"DELETE FROM unidades WHERE nombre NOT IN ({placeholders}) AND id NOT IN (SELECT unidad_id FROM partes)",
-            unidades,
-        )
 
     unidad_ids = {
         row["nombre"]: row["id"]

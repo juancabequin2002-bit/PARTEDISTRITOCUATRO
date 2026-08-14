@@ -7,3 +7,6 @@ services:
     buildCommand: pip install -r python_parte_fuerza/requirements.txt
     startCommand: python python_parte_fuerza/app.py
     healthCheckPath: /up
+    envVars:
+      - key: DATA_DIR
+        value: /var/data
