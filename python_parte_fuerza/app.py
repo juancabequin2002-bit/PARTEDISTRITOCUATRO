@@ -312,10 +312,11 @@ def init_db():
             (ADMIN_USER, hash_password(ADMIN_PASSWORD)),
         )
         conn.execute(
-            "INSERT OR IGNORE INTO unidades (id, nombre, estado) VALUES (1, 'Distrito Cuatro de Polic&iacute;a Purificación', 'activa')"
+            "INSERT OR IGNORE INTO unidades (id, nombre, estado) VALUES (1, 'DISTRITO CUATRO DE POLICIA PURIFICACION', 'activa')"
         )
 
         import_excel_personal(conn)
+        normalizar_unidad_distrito(conn)
 
         if conn.execute("SELECT COUNT(*) total FROM funcionarios").fetchone()["total"] == 0:
             funcionarios = [
@@ -495,6 +496,25 @@ def import_excel_personal(conn):
             """,
             (unidad, username, hash_password(password), unidad_ids[unidad]),
         )
+
+
+def normalizar_unidad_distrito(conn):
+    correcta = "DISTRITO CUATRO DE POLICIA PURIFICACION"
+    malas = [
+        "Distrito Cuatro de Polic&iacute;a Purificación",
+        "Distrito Cuatro de Policía Purificación",
+    ]
+    conn.execute("INSERT OR IGNORE INTO unidades (nombre, estado) VALUES (?, 'activa')", (correcta,))
+    correcta_id = conn.execute("SELECT id FROM unidades WHERE nombre = ?", (correcta,)).fetchone()["id"]
+    for mala in malas:
+        row = conn.execute("SELECT id FROM unidades WHERE nombre = ?", (mala,)).fetchone()
+        if not row or int(row["id"]) == int(correcta_id):
+            continue
+        mala_id = row["id"]
+        conn.execute("UPDATE partes SET unidad_id = ? WHERE unidad_id = ?", (correcta_id, mala_id))
+        conn.execute("UPDATE funcionarios SET unidad_id = ? WHERE unidad_id = ?", (correcta_id, mala_id))
+        conn.execute("UPDATE usuarios SET unidad_id = ? WHERE unidad_id = ?", (correcta_id, mala_id))
+        conn.execute("DELETE FROM unidades WHERE id = ?", (mala_id,))
 
 
 def parse_dt(fecha, hora):
