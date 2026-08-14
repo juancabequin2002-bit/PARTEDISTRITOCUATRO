@@ -1079,16 +1079,8 @@ def login_page(error=""):
         {alert}
         <label>Usuario<input type="text" name="email" value="" autocomplete="username" required></label>
         <label>Contrase&ntilde;a<input type="password" name="password" required></label>
-        <label>Nombre del equipo o tel&eacute;fono<input type="text" name="device_name" id="deviceName" placeholder="Ejemplo: Laptop Comando / iPhone Prado" autocomplete="organization-title"></label>
         <button class="btn primary full">Ingresar</button>
     </form>
-    <script>
-    const deviceInput = document.getElementById('deviceName');
-    deviceInput.value = localStorage.getItem('parte_device_name') || '';
-    document.querySelector('.login-card').addEventListener('submit', () => {{
-        if (deviceInput.value.trim()) localStorage.setItem('parte_device_name', deviceInput.value.trim());
-    }});
-    </script>
 </body>
 </html>"""
 
@@ -1735,7 +1727,6 @@ class Handler(BaseHTTPRequestHandler):
             if email.upper() == ADMIN_USER.upper():
                 email = ADMIN_USER
             password = form.get("password", [""])[0]
-            device_name = form.get("device_name", [""])[0].strip()
             if self.is_login_blocked(ip):
                 record_security_event(ip, email, "Login bloqueado", "Demasiados intentos fallidos.")
                 return self.send_html(login_page("Acceso bloqueado temporalmente por varios intentos fallidos."), 429)
@@ -1748,7 +1739,7 @@ class Handler(BaseHTTPRequestHandler):
             LOGIN_ATTEMPTS.pop(ip, None)
             token = secrets.token_urlsafe(24)
             SESSIONS[token] = row_dict(user)
-            record_login(row_dict(user), ip, self.headers.get("User-Agent", ""), device_name)
+            record_login(row_dict(user), ip, self.headers.get("User-Agent", ""), "Automático")
             secure = "; Secure" if self.headers.get("X-Forwarded-Proto", "").lower() == "https" else ""
             return self.send_html("", 302, {"Set-Cookie": f"session={token}; Path=/; HttpOnly; SameSite=Strict{secure}", "Location": "/parte"})
 
