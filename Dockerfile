@@ -1,34 +1,15 @@
-FROM php:8.3-apache
+FROM python:3.12-slim
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        git \
-        unzip \
-        libzip-dev \
-        libpng-dev \
-        libonig-dev \
-        default-mysql-client \
-    && docker-php-ext-install pdo_mysql mbstring zip exif pcntl bcmath gd \
-    && a2enmod rewrite \
-    && sed -ri -e 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/*.conf \
-    && rm -rf /var/lib/apt/lists/*
+ENV PYTHONUNBUFFERED=1
 
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+WORKDIR /app
 
-WORKDIR /var/www/html
+COPY python_parte_fuerza/requirements.txt python_parte_fuerza/requirements.txt
+RUN pip install --no-cache-dir -r python_parte_fuerza/requirements.txt
 
-COPY composer.json composer.json
-RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-scripts
+COPY python_parte_fuerza python_parte_fuerza
+COPY "personal del distrito.xlsx" "personal del distrito.xlsx"
 
-COPY . .
-RUN composer dump-autoload --optimize \
-    && chown -R www-data:www-data storage bootstrap/cache \
-    && chmod -R ug+rwx storage bootstrap/cache
+EXPOSE 8000
 
-COPY docker/entrypoint.sh /usr/local/bin/parte-fuerza-entrypoint
-RUN chmod +x /usr/local/bin/parte-fuerza-entrypoint
-
-EXPOSE 80
-
-ENTRYPOINT ["parte-fuerza-entrypoint"]
-CMD ["apache2-foreground"]
+CMD ["python", "python_parte_fuerza/app.py"]
