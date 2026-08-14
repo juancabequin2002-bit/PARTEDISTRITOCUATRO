@@ -2098,6 +2098,8 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", "8000"))
     server = ThreadingHTTPServer(("0.0.0.0", port), Handler)
     print(f"Sistema Parte de Fuerza en http://0.0.0.0:{port}")
+    print(f"Base de datos: {DB_PATH}")
+    print(f"Carpeta de datos: {DATA_DIR}")
     print(f"Admin: {ADMIN_USER} | Clave: {ADMIN_PASSWORD}")
     print("Unidad ejemplo: ESTACIONPURIFICACION | Clave: PURIFICACION2026")
     server.serve_forever()
