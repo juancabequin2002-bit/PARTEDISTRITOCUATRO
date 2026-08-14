@@ -163,13 +163,13 @@ def record_security_event(ip, usuario, evento, detalle):
         )
 
 
-def record_login(user, ip, user_agent):
+def record_login(user, ip, user_agent, device_name):
     unidad = get_unit_name(user.get("unidad_id")) if user.get("unidad_id") else "ADMINISTRADOR GENERAL"
     with db() as conn:
         conn.execute(
             """
-            INSERT INTO login_logs (fecha, usuario, rol, unidad, ip, equipo)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO login_logs (fecha, usuario, rol, unidad, ip, equipo_nombre, equipo)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 datetime.now().isoformat(timespec="seconds"),
@@ -177,6 +177,7 @@ def record_login(user, ip, user_agent):
                 (user.get("rol") or "")[:50],
                 unidad[:160],
                 ip[:80],
+                (device_name or "No informado")[:160],
                 (user_agent or "")[:500],
             ),
         )
@@ -285,6 +286,7 @@ def init_db():
                 rol TEXT NOT NULL,
                 unidad TEXT,
                 ip TEXT NOT NULL,
+                equipo_nombre TEXT,
                 equipo TEXT NOT NULL
             );
             """
@@ -295,6 +297,7 @@ def init_db():
         ensure_column(conn, "funcionarios", "cedula", "TEXT")
         ensure_column(conn, "funcionarios", "cargo", "TEXT")
         ensure_column(conn, "novedades", "solicitud_psi", "TEXT")
+        ensure_column(conn, "login_logs", "equipo_nombre", "TEXT")
         conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_unidades_nombre ON unidades(nombre)")
         conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_funcionarios_cedula ON funcionarios(cedula)")
 
@@ -1076,8 +1079,16 @@ def login_page(error=""):
         {alert}
         <label>Usuario<input type="text" name="email" value="" autocomplete="username" required></label>
         <label>Contrase&ntilde;a<input type="password" name="password" required></label>
+        <label>Nombre del equipo o tel&eacute;fono<input type="text" name="device_name" id="deviceName" placeholder="Ejemplo: Laptop Comando / iPhone Prado" autocomplete="organization-title"></label>
         <button class="btn primary full">Ingresar</button>
     </form>
+    <script>
+    const deviceInput = document.getElementById('deviceName');
+    deviceInput.value = localStorage.getItem('parte_device_name') || '';
+    document.querySelector('.login-card').addEventListener('submit', () => {{
+        if (deviceInput.value.trim()) localStorage.setItem('parte_device_name', deviceInput.value.trim());
+    }});
+    </script>
 </body>
 </html>"""
 
@@ -1426,22 +1437,22 @@ def ingresos_page(user=None):
         ingresos = rows_dict(
             conn.execute(
                 """
-                SELECT fecha, usuario, rol, unidad, ip, equipo
+                SELECT fecha, usuario, rol, unidad, ip, equipo_nombre, equipo
                 FROM login_logs
                 ORDER BY id DESC
                 LIMIT 200
                 """
             )
-        )
+    )
     rows = "".join(
-        f"<tr><td>{h(i['fecha'])}</td><td>{h(i['usuario'])}</td><td>{h(i['rol'])}</td><td>{h(i['unidad'])}</td><td>{h(i['ip'])}</td><td>{h(i['equipo'])}</td></tr>"
+        f"<tr><td>{h(i['fecha'])}</td><td>{h(i['usuario'])}</td><td>{h(i['rol'])}</td><td>{h(i['unidad'])}</td><td>{h(i['ip'])}</td><td>{h(i.get('equipo_nombre') or 'No informado')}</td><td>{h(i['equipo'])}</td></tr>"
         for i in ingresos
     )
     content = f"""
 <section class="panel">
     <div class="section-head"><h2>Ingresos al sistema</h2><span class="security-badge">{len(ingresos)} ingresos recientes</span></div>
-    <div class="alert info">Este registro muestra qui&eacute;n ingres&oacute;, desde qu&eacute; direcci&oacute;n IP y con qu&eacute; equipo o navegador.</div>
-    <table class="data-table"><thead><tr><th>Fecha</th><th>Usuario</th><th>Rol</th><th>Unidad</th><th>IP</th><th>Equipo / navegador</th></tr></thead><tbody>{rows or '<tr><td colspan="6">No hay ingresos registrados.</td></tr>'}</tbody></table>
+    <div class="alert info">Este registro muestra qui&eacute;n ingres&oacute;, desde qu&eacute; direcci&oacute;n IP, nombre de equipo reportado y navegador usado.</div>
+    <table class="data-table"><thead><tr><th>Fecha</th><th>Usuario</th><th>Rol</th><th>Unidad</th><th>IP</th><th>Nombre del equipo</th><th>Navegador / dispositivo</th></tr></thead><tbody>{rows or '<tr><td colspan="7">No hay ingresos registrados.</td></tr>'}</tbody></table>
 </section>
 """
     return layout(content, user)
@@ -1646,6 +1657,7 @@ class Handler(BaseHTTPRequestHandler):
             if email.upper() == ADMIN_USER.upper():
                 email = ADMIN_USER
             password = form.get("password", [""])[0]
+            device_name = form.get("device_name", [""])[0].strip()
             if self.is_login_blocked(ip):
                 record_security_event(ip, email, "Login bloqueado", "Demasiados intentos fallidos.")
                 return self.send_html(login_page("Acceso bloqueado temporalmente por varios intentos fallidos."), 429)
@@ -1658,7 +1670,7 @@ class Handler(BaseHTTPRequestHandler):
             LOGIN_ATTEMPTS.pop(ip, None)
             token = secrets.token_urlsafe(24)
             SESSIONS[token] = row_dict(user)
-            record_login(row_dict(user), ip, self.headers.get("User-Agent", ""))
+            record_login(row_dict(user), ip, self.headers.get("User-Agent", ""), device_name)
             secure = "; Secure" if self.headers.get("X-Forwarded-Proto", "").lower() == "https" else ""
             return self.send_html("", 302, {"Set-Cookie": f"session={token}; Path=/; HttpOnly; SameSite=Strict{secure}", "Location": "/parte"})
 
