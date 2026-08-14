@@ -1,0 +1,8 @@
+.git
+.agents
+__pycache__
+*.pyc
+python_parte_fuerza/parte_fuerza.db
+storage
+vendor
+node_modules
