@@ -163,6 +163,25 @@ def record_security_event(ip, usuario, evento, detalle):
         )
 
 
+def record_login(user, ip, user_agent):
+    unidad = get_unit_name(user.get("unidad_id")) if user.get("unidad_id") else "ADMINISTRADOR GENERAL"
+    with db() as conn:
+        conn.execute(
+            """
+            INSERT INTO login_logs (fecha, usuario, rol, unidad, ip, equipo)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                datetime.now().isoformat(timespec="seconds"),
+                (user.get("email") or "")[:120],
+                (user.get("rol") or "")[:50],
+                unidad[:160],
+                ip[:80],
+                (user_agent or "")[:500],
+            ),
+        )
+
+
 def is_suspicious_path(path, query=""):
     value = f"{path}?{query}".lower()
     patterns = [
@@ -257,6 +276,16 @@ def init_db():
                 usuario TEXT,
                 evento TEXT NOT NULL,
                 detalle TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS login_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                fecha TEXT NOT NULL,
+                usuario TEXT NOT NULL,
+                rol TEXT NOT NULL,
+                unidad TEXT,
+                ip TEXT NOT NULL,
+                equipo TEXT NOT NULL
             );
             """
         )
@@ -1000,6 +1029,7 @@ def layout(content, user=None):
     user = user or {}
     unit_name = get_unit_name(user.get("unidad_id")) if user.get("rol") == "unidad" else "ADMINISTRADOR GENERAL"
     report_link = '<a class="nav-link" href="/historial"><span class="nav-ico">RP</span><span>Reportes de Unidades</span></a>' if user.get("rol") == "admin" else ""
+    ingresos_link = '<a class="nav-link" href="/ingresos"><span class="nav-ico">IN</span><span>Ingresos</span></a>' if user.get("rol") == "admin" else ""
     security_link = '<a class="nav-link" href="/seguridad"><span class="nav-ico">SG</span><span>Seguridad</span></a>' if user.get("rol") == "admin" else ""
     return page_shell(
         "Parte de Fuerza",
@@ -1018,6 +1048,7 @@ def layout(content, user=None):
         <a class="nav-link" href="/parte#novedades"><span class="nav-ico">NV</span><span>Novedades</span></a>
         <a class="nav-link" href="/funcionarios"><span class="nav-ico">FN</span><span>Funcionarios</span></a>
         {report_link}
+        {ingresos_link}
         {security_link}
         <a class="nav-link logout-link" href="/logout"><span class="nav-ico">CS</span><span>Cerrar Sesi&oacute;n</span></a>
     </aside>
@@ -1387,6 +1418,35 @@ def seguridad_page(user=None):
     return layout(content, user)
 
 
+def ingresos_page(user=None):
+    user = user or {}
+    if user.get("rol") != "admin":
+        return layout("<section class='panel'>No autorizado.</section>", user)
+    with db() as conn:
+        ingresos = rows_dict(
+            conn.execute(
+                """
+                SELECT fecha, usuario, rol, unidad, ip, equipo
+                FROM login_logs
+                ORDER BY id DESC
+                LIMIT 200
+                """
+            )
+        )
+    rows = "".join(
+        f"<tr><td>{h(i['fecha'])}</td><td>{h(i['usuario'])}</td><td>{h(i['rol'])}</td><td>{h(i['unidad'])}</td><td>{h(i['ip'])}</td><td>{h(i['equipo'])}</td></tr>"
+        for i in ingresos
+    )
+    content = f"""
+<section class="panel">
+    <div class="section-head"><h2>Ingresos al sistema</h2><span class="security-badge">{len(ingresos)} ingresos recientes</span></div>
+    <div class="alert info">Este registro muestra qui&eacute;n ingres&oacute;, desde qu&eacute; direcci&oacute;n IP y con qu&eacute; equipo o navegador.</div>
+    <table class="data-table"><thead><tr><th>Fecha</th><th>Usuario</th><th>Rol</th><th>Unidad</th><th>IP</th><th>Equipo / navegador</th></tr></thead><tbody>{rows or '<tr><td colspan="6">No hay ingresos registrados.</td></tr>'}</tbody></table>
+</section>
+"""
+    return layout(content, user)
+
+
 
 class Handler(BaseHTTPRequestHandler):
     def client_ip(self):
@@ -1511,6 +1571,11 @@ class Handler(BaseHTTPRequestHandler):
                 record_security_event(self.client_ip(), user.get("email", ""), "Acceso no autorizado", path)
                 return self.redirect("/parte")
             return self.send_html(historial_page(user, parsed.query))
+        if path == "/ingresos":
+            if user.get("rol") != "admin":
+                record_security_event(self.client_ip(), user.get("email", ""), "Acceso no autorizado", path)
+                return self.redirect("/parte")
+            return self.send_html(ingresos_page(user))
         if path == "/seguridad":
             if user.get("rol") != "admin":
                 record_security_event(self.client_ip(), user.get("email", ""), "Acceso no autorizado", path)
@@ -1593,6 +1658,7 @@ class Handler(BaseHTTPRequestHandler):
             LOGIN_ATTEMPTS.pop(ip, None)
             token = secrets.token_urlsafe(24)
             SESSIONS[token] = row_dict(user)
+            record_login(row_dict(user), ip, self.headers.get("User-Agent", ""))
             secure = "; Secure" if self.headers.get("X-Forwarded-Proto", "").lower() == "https" else ""
             return self.send_html("", 302, {"Set-Cookie": f"session={token}; Path=/; HttpOnly; SameSite=Strict{secure}", "Location": "/parte"})
 
