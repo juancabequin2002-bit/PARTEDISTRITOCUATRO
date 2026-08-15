@@ -1353,7 +1353,7 @@ def render_report(pdf, reporte):
         ])
     if not nov_rows:
         nov_rows = [["Sin novedades registradas.", "", "", "", "", "", ""]]
-    pdf.table(["Tipo", "Funcionario", "Categor\u00eda", "Inicio", "Fin", "D\u00edas", "PSI"], nov_rows, [80, 150, 80, 80, 80, 45, 45], hs=10, cs=10)
+    pdf.table(["Tipo", "Funcionario", "Categor\u00eda", "Inicio", "Fin", "D\u00edas", "PSI"], nov_rows, [58, 190, 90, 62, 62, 38, 40], hs=8, cs=7)
 
     pdf.heading("Observaciones")
     pdf.ensure(20)
