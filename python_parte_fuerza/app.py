@@ -221,6 +221,7 @@ def init_db():
                 nombre TEXT NOT NULL,
                 email TEXT NOT NULL UNIQUE,
                 password TEXT NOT NULL,
+                password_plano TEXT,
                 rol TEXT NOT NULL DEFAULT 'unidad',
                 unidad_id INTEGER
             );
@@ -297,6 +298,7 @@ def init_db():
 
         ensure_column(conn, "usuarios", "rol", "TEXT NOT NULL DEFAULT 'unidad'")
         ensure_column(conn, "usuarios", "unidad_id", "INTEGER")
+        ensure_column(conn, "usuarios", "password_plano", "TEXT")
         ensure_column(conn, "funcionarios", "cedula", "TEXT")
         ensure_column(conn, "funcionarios", "cargo", "TEXT")
         ensure_column(conn, "novedades", "solicitud_psi", "TEXT")
@@ -305,12 +307,12 @@ def init_db():
         conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_funcionarios_cedula ON funcionarios(cedula)")
 
         conn.execute(
-            "INSERT OR IGNORE INTO usuarios (id, nombre, email, password, rol, unidad_id) VALUES (1, 'Administrador', ?, ?, 'admin', NULL)",
-            (ADMIN_USER, hash_password(ADMIN_PASSWORD)),
+            "INSERT OR IGNORE INTO usuarios (id, nombre, email, password, password_plano, rol, unidad_id) VALUES (1, 'Administrador', ?, ?, ?, 'admin', NULL)",
+            (ADMIN_USER, hash_password(ADMIN_PASSWORD), ADMIN_PASSWORD),
         )
         conn.execute(
-            "UPDATE usuarios SET nombre = 'Administrador', email = ?, password = ?, rol = 'admin', unidad_id = NULL WHERE id = 1",
-            (ADMIN_USER, hash_password(ADMIN_PASSWORD)),
+            "UPDATE usuarios SET nombre = 'Administrador', email = ?, password = ?, password_plano = ?, rol = 'admin', unidad_id = NULL WHERE id = 1",
+            (ADMIN_USER, hash_password(ADMIN_PASSWORD), ADMIN_PASSWORD),
         )
         conn.execute(
             "INSERT OR IGNORE INTO unidades (id, nombre, estado) VALUES (1, 'DISTRITO CUATRO DE POLICIA PURIFICACION', 'activa')"
@@ -484,10 +486,18 @@ def import_excel_personal(conn):
         username, password = unit_credentials(unidad)
         conn.execute(
             """
-            INSERT OR IGNORE INTO usuarios (nombre, email, password, rol, unidad_id)
-            VALUES (?, ?, ?, 'unidad', ?)
+            INSERT OR IGNORE INTO usuarios (nombre, email, password, password_plano, rol, unidad_id)
+            VALUES (?, ?, ?, ?, 'unidad', ?)
             """,
-            (unidad, username, hash_password(password), unidad_ids[unidad]),
+            (unidad, username, hash_password(password), password, unidad_ids[unidad]),
+        )
+        conn.execute(
+            """
+            UPDATE usuarios
+            SET password_plano = ?
+            WHERE email = ? AND (password_plano IS NULL OR password_plano = '')
+            """,
+            (password, username),
         )
 
 
@@ -1164,6 +1174,7 @@ def layout(content, user=None):
     novedades_link = '<a class="nav-link" href="/novedades"><span class="nav-ico">NV</span><span>Novedades</span></a>' if user.get("rol") == "admin" else ""
     general_link = '<a class="nav-link" href="/reporte-general"><span class="nav-ico">RG</span><span>Reporte General</span></a>' if user.get("rol") == "admin" else ""
     report_link = '<a class="nav-link" href="/historial"><span class="nav-ico">RP</span><span>Reportes de Unidades</span></a>' if user.get("rol") == "admin" else ""
+    users_link = '<a class="nav-link" href="/usuarios"><span class="nav-ico">US</span><span>Usuarios</span></a>' if user.get("rol") == "admin" else ""
     ingresos_link = '<a class="nav-link" href="/ingresos"><span class="nav-ico">IN</span><span>Ingresos</span></a>' if user.get("rol") == "admin" else ""
     security_link = '<a class="nav-link" href="/seguridad"><span class="nav-ico">SG</span><span>Seguridad</span></a>' if user.get("rol") == "admin" else ""
     return page_shell(
@@ -1184,6 +1195,7 @@ def layout(content, user=None):
         <a class="nav-link" href="/funcionarios"><span class="nav-ico">FN</span><span>Funcionarios</span></a>
         {general_link}
         {report_link}
+        {users_link}
         {ingresos_link}
         {security_link}
         <a class="nav-link logout-link" href="/logout"><span class="nav-ico">CS</span><span>Cerrar Sesi&oacute;n</span></a>
@@ -1378,6 +1390,85 @@ def funcionarios_page(user=None):
 <section class="panel">
     <h2>Funcionarios</h2>
     <table class="data-table"><thead><tr><th>Grado</th><th>Funcionario</th><th>Categor&iacute;a</th><th>Unidad</th><th>Estado</th></tr></thead><tbody>{rows}</tbody></table>
+</section>
+"""
+    return layout(content, user)
+
+
+def usuarios_page(user=None, error=""):
+    user = user or {}
+    if user.get("rol") != "admin":
+        return layout("<section class='panel'>No autorizado.</section>", user)
+    with db() as conn:
+        usuarios = rows_dict(
+            conn.execute(
+                """
+                SELECT us.*, un.nombre unidad
+                FROM usuarios us
+                LEFT JOIN unidades un ON un.id = us.unidad_id
+                ORDER BY CASE WHEN us.rol = 'admin' THEN 0 ELSE 1 END, un.nombre, us.email
+                """
+            )
+        )
+        unidades = ordenar_unidades(rows_dict(conn.execute("SELECT * FROM unidades WHERE estado = 'activa'")))
+
+    rol_options = {
+        "admin": "Administrador",
+        "unidad": "Unidad",
+    }
+
+    def unidad_options(selected_id):
+        options = "<option value='' " + ("selected" if not selected_id else "") + ">Sin unidad</option>"
+        for unidad in unidades:
+            selected = "selected" if str(unidad["id"]) == str(selected_id or "") else ""
+            options += f"<option value='{unidad['id']}' {selected}>{h(unidad['nombre'])}</option>"
+        return options
+
+    def rol_select(selected):
+        return "".join(
+            f"<option value='{value}' {'selected' if value == selected else ''}>{label}</option>"
+            for value, label in rol_options.items()
+        )
+
+    rows = ""
+    for item in usuarios:
+        password_visible = item.get("password_plano") or ""
+        rows += f"""
+        <tr>
+            <td colspan="6">
+                <form method="POST" action="/usuarios" class="user-edit-row">
+                    <input type="hidden" name="id" value="{item['id']}">
+                    <label>Nombre<input name="nombre" value="{h(item['nombre'])}" required></label>
+                    <label>Usuario<input name="email" value="{h(item['email'])}" required></label>
+                    <label>Contrase&ntilde;a<input name="password_plano" value="{h(password_visible)}" required></label>
+                    <label>Rol<select name="rol">{rol_select(item['rol'])}</select></label>
+                    <label>Unidad<select name="unidad_id">{unidad_options(item.get('unidad_id'))}</select></label>
+                    <button class="btn primary" type="submit">Guardar</button>
+                </form>
+            </td>
+        </tr>"""
+
+    new_unit_options = unidad_options("")
+    alert = f"<div class='alert danger'>{h(error)}</div>" if error else ""
+    content = f"""
+<section class="panel">
+    <div class="section-head"><h2>Usuarios y contrase&ntilde;as</h2><span class="security-badge">Solo administrador</span></div>
+    <div class="alert info">Desde aqu&iacute; el administrador puede ver y modificar los usuarios de cada unidad. La contrase&ntilde;a se guarda visible solo para esta pantalla administrativa y se usa cifrada para iniciar sesi&oacute;n.</div>
+    {alert}
+    <h3>Crear usuario</h3>
+    <form method="POST" action="/usuarios" class="grid six">
+        <input type="hidden" name="id" value="">
+        <input name="nombre" placeholder="Nombre visible" required>
+        <input name="email" placeholder="Usuario" required>
+        <input name="password_plano" placeholder="Contrase&ntilde;a" required>
+        <select name="rol"><option value="unidad">Unidad</option><option value="admin">Administrador</option></select>
+        <select name="unidad_id">{new_unit_options}</select>
+        <button class="btn primary">Crear</button>
+    </form>
+</section>
+<section class="panel">
+    <h2>Usuarios registrados</h2>
+    <table class="data-table"><thead><tr><th>Editar usuarios</th></tr></thead><tbody>{rows or '<tr><td>No hay usuarios registrados.</td></tr>'}</tbody></table>
 </section>
 """
     return layout(content, user)
@@ -1857,6 +1948,11 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_html(novedades_page(user, parsed.query))
         if path == "/funcionarios":
             return self.send_html(funcionarios_page(user))
+        if path == "/usuarios":
+            if user.get("rol") != "admin":
+                record_security_event(self.client_ip(), user.get("email", ""), "Acceso no autorizado", path)
+                return self.redirect("/parte")
+            return self.send_html(usuarios_page(user))
         if path == "/diagnostico":
             if user.get("rol") != "admin":
                 record_security_event(self.client_ip(), user.get("email", ""), "Acceso no autorizado", path)
@@ -2000,6 +2096,47 @@ class Handler(BaseHTTPRequestHandler):
                     ),
                 )
             return self.redirect("/funcionarios")
+
+        if parsed.path == "/usuarios":
+            user = self.current_user()
+            if user.get("rol") != "admin":
+                record_security_event(self.client_ip(), user.get("email", ""), "Acceso no autorizado", parsed.path)
+                return self.send_html("No autorizado", 403)
+            form = parse_qs(self.read_body())
+            user_id = form.get("id", [""])[0].strip()
+            nombre = form.get("nombre", [""])[0].strip()
+            email = form.get("email", [""])[0].strip()
+            password_plano = form.get("password_plano", [""])[0].strip()
+            rol = form.get("rol", ["unidad"])[0].strip()
+            unidad_id = form.get("unidad_id", [""])[0].strip() or None
+            if rol not in {"admin", "unidad"}:
+                rol = "unidad"
+            if rol == "admin":
+                unidad_id = None
+            if not nombre or not email or not password_plano:
+                return self.send_html(usuarios_page(user, "Debe diligenciar nombre, usuario y contrase&ntilde;a."), 422)
+            try:
+                with db() as conn:
+                    if user_id:
+                        conn.execute(
+                            """
+                            UPDATE usuarios
+                            SET nombre = ?, email = ?, password = ?, password_plano = ?, rol = ?, unidad_id = ?
+                            WHERE id = ?
+                            """,
+                            (nombre, email, hash_password(password_plano), password_plano, rol, unidad_id, user_id),
+                        )
+                    else:
+                        conn.execute(
+                            """
+                            INSERT INTO usuarios (nombre, email, password, password_plano, rol, unidad_id)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                            """,
+                            (nombre, email, hash_password(password_plano), password_plano, rol, unidad_id),
+                        )
+            except sqlite3.IntegrityError:
+                return self.send_html(usuarios_page(user, "No se pudo guardar: ese usuario ya existe."), 422)
+            return self.redirect("/usuarios")
 
         if parsed.path == "/api/partes":
             try:
