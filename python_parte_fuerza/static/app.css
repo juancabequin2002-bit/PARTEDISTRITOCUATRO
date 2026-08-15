@@ -577,6 +577,18 @@ label {
     font-size: 13px;
 }
 
+.mini-badge {
+    display: inline-block;
+    margin-top: 5px;
+    border-radius: 999px;
+    padding: 3px 8px;
+    background: #e7f4ec;
+    color: var(--green-900);
+    font-size: 11px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
 .actions-panel .btn {
     margin-bottom: 14px;
 }

@@ -9,12 +9,13 @@ import struct
 import time
 import unicodedata
 import zlib
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from http import cookies
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
+from zoneinfo import ZoneInfo
 from xml.etree import ElementTree as ET
 from zipfile import ZipFile
 
@@ -43,6 +44,10 @@ ADMIN_PASSWORD = "Distrito4**"
 MAX_LOGIN_ATTEMPTS = 5
 LOGIN_WINDOW_SECONDS = 600
 LOGIN_BLOCK_SECONDS = 900
+try:
+    APP_TZ = ZoneInfo("America/Bogota")
+except Exception:
+    APP_TZ = timezone(timedelta(hours=-5))
 
 CATEGORIAS = {
     "oficiales": "Oficiales",
@@ -734,6 +739,84 @@ def parte_efectiva(data):
     }
 
 
+def fecha_hora_actual():
+    now = datetime.now(APP_TZ)
+    return now.date().isoformat(), now.strftime("%H:%M")
+
+
+def novedades_vigentes(fecha, hora, unidad_id):
+    if not fecha or not hora or not unidad_id:
+        return []
+    target = f"{fecha}T{hora}"
+    with db() as conn:
+        rows = rows_dict(
+            conn.execute(
+                """
+                SELECT
+                    n.id,
+                    n.funcionario_id,
+                    n.tipo_novedad,
+                    n.fecha_inicio,
+                    n.hora_inicio,
+                    n.fecha_fin,
+                    n.hora_fin,
+                    n.dias_calculados,
+                    n.solicitud_psi,
+                    f.grado,
+                    f.nombres,
+                    f.apellidos,
+                    f.categoria,
+                    f.unidad_id,
+                    uf.nombre unidad_nombre,
+                    up.nombre unidad_reporta,
+                    p.comandante
+                FROM novedades n
+                JOIN partes p ON p.id = n.parte_id
+                JOIN funcionarios f ON f.id = n.funcionario_id
+                JOIN unidades uf ON uf.id = f.unidad_id
+                JOIN unidades up ON up.id = p.unidad_id
+                WHERE n.estado = 'activa'
+                  AND f.estado = 'activo'
+                  AND f.unidad_id = ?
+                  AND (n.fecha_inicio || 'T' || n.hora_inicio) <= ?
+                  AND (n.fecha_fin || 'T' || n.hora_fin) >= ?
+                ORDER BY n.id DESC
+                """,
+                (unidad_id, target, target),
+            )
+        )
+    seen = set()
+    vigentes = []
+    for row in rows:
+        funcionario_id = int(row["funcionario_id"])
+        if funcionario_id in seen:
+            continue
+        seen.add(funcionario_id)
+        vigentes.append(
+            {
+                "origen_novedad_id": row["id"],
+                "automatica": True,
+                "unidad_id": str(row["unidad_id"]),
+                "unidad_nombre": row["unidad_nombre"],
+                "unidad_reporta": row["unidad_reporta"],
+                "comandante_origen": row["comandante"],
+                "tipo_novedad": row["tipo_novedad"],
+                "funcionario_id": str(row["funcionario_id"]),
+                "funcionario": f"{row['nombres']} {row['apellidos']}",
+                "grado": row["grado"],
+                "categoria": row["categoria"],
+                "categoria_nombre": CATEGORIAS.get(row["categoria"], row["categoria"]),
+                "fecha_inicio": row["fecha_inicio"],
+                "hora_inicio": row["hora_inicio"],
+                "fecha_fin": row["fecha_fin"],
+                "hora_fin": row["hora_fin"],
+                "dias_calculados": float(row["dias_calculados"] or 0),
+                "solicitud_psi": row.get("solicitud_psi") or "",
+            }
+        )
+    return vigentes
+
+
 def validar_novedades(data, novedades):
     if not data.get("unidad_id"):
         raise ValueError("Debe seleccionar la unidad que reporta el parte.")
@@ -1421,6 +1504,8 @@ def login_page(error=""):
 
 def parte_page(user=None):
     user = user or {}
+    fecha_default, _hora_actual = fecha_hora_actual()
+    hora_default = "07:00"
     with db() as conn:
         unidades = ordenar_unidades(rows_dict(conn.execute("SELECT * FROM unidades WHERE estado = 'activa'")), solo_operativas=True)
         funcionarios = ordenar_funcionarios(rows_dict(
@@ -1446,8 +1531,8 @@ def parte_page(user=None):
         <div class="grid four">
             <label>Unidad<select id="unidad_id">{unidad_options}</select></label>
             <label>Comandante que reporta<input id="comandante" placeholder="Ejemplo: Cap. YESICA LICETH GOMEZ TRUJILLO"></label>
-            <label>Fecha del parte<input type="date" id="fecha" value="2026-08-05"></label>
-            <label>Hora del parte<input type="time" id="hora_parte" value="12:00"></label>
+            <label>Fecha del parte<input type="date" id="fecha" value="{fecha_default}"></label>
+            <label>Hora del parte<input type="time" id="hora_parte" value="{hora_default}"></label>
         </div>
     </section>
 
@@ -1495,9 +1580,9 @@ def parte_page(user=None):
                     <div class="alert info compact-alert">Este campo es obligatorio cuando el tipo de novedad es Permiso o Franquicia.</div>
                 </div>
                 <div class="grid four compact">
-                    <label>Fecha inicio<input type="date" id="fecha_inicio" value="2026-08-05"></label>
+                    <label>Fecha inicio<input type="date" id="fecha_inicio" value="{fecha_default}"></label>
                     <label>Hora inicio<input type="time" id="hora_inicio" value="06:00"></label>
-                    <label>Fecha fin<input type="date" id="fecha_fin" value="2026-08-05"></label>
+                    <label>Fecha fin<input type="date" id="fecha_fin" value="{fecha_default}"></label>
                     <label>Hora fin<input type="time" id="hora_fin" value="18:00"></label>
                 </div>
                 <div class="novedad-actions">
@@ -2151,6 +2236,15 @@ class Handler(BaseHTTPRequestHandler):
                 record_security_event(self.client_ip(), user.get("email", ""), "Acceso no autorizado", path)
                 return self.redirect("/parte")
             return self.send_json(diagnostico_data())
+        if path == "/api/novedades-vigentes":
+            params = parse_qs(parsed.query)
+            fecha = params.get("fecha", [""])[0]
+            hora = params.get("hora", ["07:00"])[0]
+            unidad_id = params.get("unidad_id", [""])[0]
+            if user.get("rol") == "unidad" and str(user.get("unidad_id")) != str(unidad_id):
+                record_security_event(self.client_ip(), user.get("email", ""), "Acceso no autorizado", path)
+                return self.send_json({"error": "No autorizado"}, 403)
+            return self.send_json({"novedades": novedades_vigentes(fecha, hora, unidad_id)})
         if path == "/historial":
             if user.get("rol") != "admin":
                 record_security_event(self.client_ip(), user.get("email", ""), "Acceso no autorizado", path)

@@ -4,6 +4,7 @@
         categorias: window.ParteFuerza.categorias || {},
         novedades: [],
         editIndex: null,
+        cargaVigentes: 0,
     };
 
     const $ = (id) => document.getElementById(id);
@@ -155,6 +156,7 @@
         const funcionario = funcionarioActual();
         return {
             unidad_id: $("unidad_novedad_id").value,
+            unidad_nombre: funcionario ? funcionario.unidad_nombre : "",
             tipo_novedad: $("tipo_novedad").value,
             funcionario_id: $("funcionario_id").value,
             funcionario: funcionario ? `${funcionario.nombres} ${funcionario.apellidos}` : "",
@@ -168,6 +170,42 @@
             dias_calculados: calcularDias(),
             solicitud_psi: $("solicitud_psi").value,
         };
+    }
+
+    async function cargarNovedadesVigentes() {
+        const unidadId = $("unidad_id").value;
+        const fecha = $("fecha").value;
+        const hora = $("hora_parte").value || "07:00";
+        state.cargaVigentes += 1;
+        const token = state.cargaVigentes;
+
+        state.novedades = state.novedades.filter((novedad) => !novedad.automatica);
+        if (!unidadId || !fecha || !hora) {
+            renderNovedades();
+            return;
+        }
+
+        const params = new URLSearchParams({unidad_id: unidadId, fecha, hora});
+        try {
+            const response = await fetch(`/api/novedades-vigentes?${params.toString()}`, {headers: {"Accept": "application/json"}});
+            const data = await response.json();
+            if (token !== state.cargaVigentes) return;
+            if (!response.ok) return;
+
+            const manuales = new Set(
+                state.novedades
+                    .filter((novedad) => !novedad.automatica)
+                    .map((novedad) => String(novedad.funcionario_id))
+            );
+            (data.novedades || []).forEach((novedad) => {
+                if (!manuales.has(String(novedad.funcionario_id))) {
+                    state.novedades.push(novedad);
+                }
+            });
+        } catch (error) {
+            console.warn("No fue posible cargar novedades vigentes", error);
+        }
+        renderNovedades();
     }
 
     function validarNovedad(novedad, ignoreIndex = null) {
@@ -224,9 +262,11 @@
 
         state.novedades.forEach((novedad, index) => {
             const tr = document.createElement("tr");
+            const etiqueta = novedad.automatica ? '<br><span class="mini-badge">Vigente</span>' : "";
+            const unidad = novedad.unidad_nombre ? `<br><small>${novedad.unidad_nombre}</small>` : "";
             tr.innerHTML = `
-                <td><strong>${novedad.tipo_novedad}</strong></td>
-                <td><strong>${novedad.grado}</strong><br>${novedad.funcionario}</td>
+                <td><strong>${novedad.tipo_novedad}</strong>${etiqueta}</td>
+                <td><strong>${novedad.grado}</strong><br>${novedad.funcionario}${unidad}</td>
                 <td>${formatDate(novedad.fecha_inicio)}<br>${novedad.hora_inicio}</td>
                 <td>${formatDate(novedad.fecha_fin)}<br>${novedad.hora_fin}</td>
                 <td>${Number(novedad.dias_calculados).toFixed(2)}</td>
@@ -298,10 +338,17 @@
 
     document.querySelectorAll(".efectiva").forEach((input) => input.addEventListener("input", calcularFuerzaDisponible));
     ["fecha_inicio", "hora_inicio", "fecha_fin", "hora_fin"].forEach((id) => $(id).addEventListener("input", calcularDias));
-    $("fecha").addEventListener("input", calcularFuerzaDisponible);
-    $("hora_parte").addEventListener("input", calcularFuerzaDisponible);
+    $("fecha").addEventListener("input", () => {
+        calcularFuerzaDisponible();
+        cargarNovedadesVigentes();
+    });
+    $("hora_parte").addEventListener("input", () => {
+        calcularFuerzaDisponible();
+        cargarNovedadesVigentes();
+    });
     $("unidad_id").addEventListener("change", () => {
         calcularFuerzaDisponible();
+        cargarNovedadesVigentes();
     });
     $("unidad_novedad_id").addEventListener("change", () => {
         $("funcionario_id").value = "";
@@ -345,4 +392,5 @@
     renderFuncionarios();
     calcularDias();
     renderNovedades();
+    cargarNovedadesVigentes();
 })();
