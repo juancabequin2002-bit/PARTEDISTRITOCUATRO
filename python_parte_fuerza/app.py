@@ -1167,6 +1167,11 @@ class PdfBuilder:
     def table(self, headers, rows, col_widths, fill="0.929 0.961 0.941", hs=9, cs=9):
         pad = 4
         x0 = self.MARGIN
+        max_width = self.PAGE_W - 2 * self.MARGIN
+        total_width = sum(col_widths)
+        if total_width > max_width:
+            scale = max_width / total_width
+            col_widths = [width * scale for width in col_widths]
         x1 = x0 + sum(col_widths)
         col_xs = [x0 + sum(col_widths[: i + 1]) for i in range(len(col_widths))]
         aligns = ["l"] + ["c"] * (len(col_widths) - 1)
@@ -1436,9 +1441,9 @@ def pdf_reporte_general(data):
     pdf.table(
         ["Unidad reporta", "Tipo", "Funcionario", "Unidad funcionario", "Inicio", "Fin", "Dias", "PSI"],
         nov_rows,
-        [95, 60, 135, 105, 70, 70, 35, 30],
-        hs=7,
-        cs=7,
+        [95, 55, 130, 95, 60, 60, 25, 20],
+        hs=6,
+        cs=6,
     )
     return pdf.build()
 
