@@ -690,14 +690,15 @@ label {
 .login-page {
     min-height: 100vh;
     display: grid;
-    place-items: center;
+    place-items: center end;
+    padding: 32px 7vw 32px 32px;
     background:
-        linear-gradient(90deg, rgba(0, 28, 14, .18), rgba(0, 56, 29, .52)),
+        linear-gradient(90deg, rgba(0, 28, 14, .04), rgba(0, 56, 29, .46)),
         url("/static/login_background_distrito.png") center center / cover no-repeat;
 }
 
 .login-card {
-    width: min(760px, calc(100vw - 32px));
+    width: min(560px, calc(100vw - 32px));
     display: grid;
     gap: 14px;
     padding: 18px 22px 26px;
@@ -722,6 +723,12 @@ label {
 }
 
 @media (max-width: 1120px) {
+    .login-page {
+        place-items: center;
+        padding: 24px;
+        background-position: 24% center;
+    }
+
     .topbar {
         height: auto;
         grid-template-columns: 1fr;
