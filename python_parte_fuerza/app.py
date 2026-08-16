@@ -1584,6 +1584,10 @@ def parte_page(user=None):
                     <label>Tipo de novedad<select id="tipo_novedad"><option value="">Seleccione...</option>{tipos_options}</select></label>
                     <label>Funcionario<select id="funcionario_id"><option value="">Seleccione...</option></select></label>
                 </div>
+                <div class="cargo-funcionario" id="cargoFuncionario" style="display:none;">
+                    <span>Cargo que ocupa</span>
+                    <strong id="cargoFuncionarioTexto"></strong>
+                </div>
                 <div class="psi-field" id="psiField" style="display:none;">
                     <label>Solicito permiso por PSI
                         <select id="solicitud_psi">

@@ -126,6 +126,23 @@
             });
 
         select.value = selected;
+        renderCargoFuncionario();
+    }
+
+    function renderCargoFuncionario() {
+        const box = $("cargoFuncionario");
+        const text = $("cargoFuncionarioTexto");
+        if (!box || !text) return;
+
+        const funcionario = funcionarioActual();
+        if (!funcionario) {
+            box.style.display = "none";
+            text.textContent = "";
+            return;
+        }
+
+        text.textContent = funcionario.cargo || "Sin cargo registrado en la matriz";
+        box.style.display = "grid";
     }
 
     function actualizarEfectivaPorUnidad() {
@@ -354,6 +371,7 @@
         $("funcionario_id").value = "";
         renderFuncionarios();
     });
+    $("funcionario_id").addEventListener("change", renderCargoFuncionario);
     $("toggleNovedad").addEventListener("click", () => $("novedadForm").classList.toggle("open"));
     $("tipo_novedad").addEventListener("change", () => {
         $("psiField").style.display = psiRequerido($("tipo_novedad").value) ? "block" : "none";
@@ -372,6 +390,7 @@
             renderFuncionarios();
             $("tipo_novedad").value = novedad.tipo_novedad;
             $("funcionario_id").value = novedad.funcionario_id;
+            renderCargoFuncionario();
             $("fecha_inicio").value = novedad.fecha_inicio;
             $("hora_inicio").value = novedad.hora_inicio;
             $("fecha_fin").value = novedad.fecha_fin;
