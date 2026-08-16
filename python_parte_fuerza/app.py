@@ -1439,6 +1439,7 @@ def pdf_reporte_general(data):
                 novedad["unidad_reporta"],
                 novedad["tipo_novedad"],
                 funcionario,
+                novedad.get("cargo") or "Sin cargo registrado",
                 novedad["unidad_funcionario"],
                 f"{novedad['fecha_inicio']} {novedad['hora_inicio']}",
                 f"{novedad['fecha_fin']} {novedad['hora_fin']}",
@@ -1447,11 +1448,11 @@ def pdf_reporte_general(data):
             ]
         )
     if not nov_rows:
-        nov_rows = [["Sin novedades registradas para esta fecha", "-", "-", "-", "-", "-", "-", "-"]]
+        nov_rows = [["Sin novedades registradas para esta fecha", "-", "-", "-", "-", "-", "-", "-", "-"]]
     pdf.table(
-        ["Unidad reporta", "Tipo", "Funcionario", "Unidad funcionario", "Inicio", "Fin", "Dias", "PSI"],
+        ["Unidad reporta", "Tipo", "Funcionario", "Cargo", "Unidad funcionario", "Inicio", "Fin", "Dias", "PSI"],
         nov_rows,
-        [95, 55, 130, 95, 60, 60, 25, 20],
+        [75, 45, 105, 90, 75, 55, 55, 25, 20],
         hs=6,
         cs=6,
     )
@@ -1966,7 +1967,7 @@ def reporte_general_page(user=None, query=""):
             <td>{h(novedad['comandante'])}</td>
             <td>{h(novedad['tipo_novedad'])}</td>
             <td>{h(funcionario)}</td>
-            <td>{h(CATEGORIAS.get(novedad['categoria'], novedad['categoria']))}</td>
+            <td>{h(novedad.get('cargo') or 'Sin cargo registrado')}</td>
             <td>{h(novedad['unidad_funcionario'])}</td>
             <td>{h(novedad['fecha_inicio'])} {h(novedad['hora_inicio'])}</td>
             <td>{h(novedad['fecha_fin'])} {h(novedad['hora_fin'])}</td>
@@ -1974,7 +1975,7 @@ def reporte_general_page(user=None, query=""):
             <td>{h(novedad.get('solicitud_psi') or '-')}</td>
         </tr>"""
     if not nov_rows:
-        nov_rows = "<tr><td colspan='9'>No hay novedades registradas para esta fecha.</td></tr>"
+        nov_rows = "<tr><td colspan='10'>No hay novedades registradas para esta fecha.</td></tr>"
 
     content = f"""
 <section class="panel report-view">
@@ -1996,7 +1997,7 @@ def reporte_general_page(user=None, query=""):
     <h2>Fuerza disponible consolidada</h2>
     <table class="data-table"><thead><tr><th>Categor&iacute;a</th><th>Efectiva</th><th>En novedades</th><th>Disponible</th></tr></thead><tbody>{fuerza_rows}</tbody></table>
     <h2>Novedades del d&iacute;a</h2>
-    <table class="data-table"><thead><tr><th>Unidad que reporta</th><th>Comandante</th><th>Tipo</th><th>Funcionario</th><th>Unidad funcionario</th><th>Inicio</th><th>Fin</th><th>D&iacute;as</th><th>PSI</th></tr></thead><tbody>{nov_rows}</tbody></table>
+    <table class="data-table"><thead><tr><th>Unidad que reporta</th><th>Comandante</th><th>Tipo</th><th>Funcionario</th><th>Cargo</th><th>Unidad funcionario</th><th>Inicio</th><th>Fin</th><th>D&iacute;as</th><th>PSI</th></tr></thead><tbody>{nov_rows}</tbody></table>
 </section>
 """
     return layout(content, user)
