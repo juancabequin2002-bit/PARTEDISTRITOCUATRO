@@ -911,7 +911,7 @@ def reporte_data(parte_id):
         novedades = rows_dict(
             conn.execute(
                 """
-                SELECT n.*, f.grado, f.nombres, f.apellidos, f.categoria, u.nombre unidad_funcionario
+                SELECT n.*, f.grado, f.nombres, f.apellidos, f.categoria, f.cargo, u.nombre unidad_funcionario
                 FROM novedades n
                 JOIN funcionarios f ON f.id = n.funcionario_id
                 JOIN unidades u ON u.id = f.unidad_id
@@ -1355,7 +1355,7 @@ def render_report(pdf, reporte):
         nov_rows.append([
             novedad["tipo_novedad"],
             funcionario,
-            CATEGORIAS.get(novedad["categoria"], novedad["categoria"]),
+            novedad.get("cargo") or "Sin cargo registrado",
             f"{novedad['fecha_inicio']} {novedad['hora_inicio']}",
             f"{novedad['fecha_fin']} {novedad['hora_fin']}",
             novedad["dias_calculados"],
@@ -1363,7 +1363,7 @@ def render_report(pdf, reporte):
         ])
     if not nov_rows:
         nov_rows = [["Sin novedades registradas.", "", "", "", "", "", ""]]
-    pdf.table(["Tipo", "Funcionario", "Categor\u00eda", "Inicio", "Fin", "D\u00edas", "PSI"], nov_rows, [58, 190, 90, 62, 62, 38, 40], hs=8, cs=7)
+    pdf.table(["Tipo", "Funcionario", "Cargo", "Inicio", "Fin", "D\u00edas", "PSI"], nov_rows, [58, 170, 110, 62, 62, 38, 40], hs=8, cs=7)
 
     pdf.heading("Observaciones")
     pdf.ensure(20)
@@ -1801,6 +1801,7 @@ def novedades_page(user=None, query=""):
                     f.nombres,
                     f.apellidos,
                     f.categoria,
+                    f.cargo,
                     uf.nombre unidad_funcionario
                 FROM novedades n
                 JOIN partes p ON p.id = n.parte_id
@@ -1823,7 +1824,7 @@ def novedades_page(user=None, query=""):
             <td>{h(novedad['comandante'])}</td>
             <td>{h(novedad['tipo_novedad'])}</td>
             <td>{h(funcionario)}</td>
-            <td>{h(CATEGORIAS.get(novedad['categoria'], novedad['categoria']))}</td>
+            <td>{h(novedad.get('cargo') or 'Sin cargo registrado')}</td>
             <td>{h(novedad['unidad_funcionario'])}</td>
             <td>{h(novedad['fecha_inicio'])} {h(novedad['hora_inicio'])}</td>
             <td>{h(novedad['fecha_fin'])} {h(novedad['hora_fin'])}</td>
@@ -1840,7 +1841,7 @@ def novedades_page(user=None, query=""):
         <button class="btn primary">Buscar novedades</button>
     </form>
     <div class="alert info">La consulta muestra las novedades vigentes para la fecha seleccionada seg&uacute;n los partes guardados por los comandantes.</div>
-    <table class="data-table"><thead><tr><th>Unidad que reporta</th><th>Comandante</th><th>Tipo</th><th>Funcionario</th><th>Categor&iacute;a</th><th>Unidad funcionario</th><th>Inicio</th><th>Fin</th><th>D&iacute;as</th><th>PSI</th></tr></thead><tbody>{rows or '<tr><td colspan="10">No hay funcionarios en novedad para esta fecha.</td></tr>'}</tbody></table>
+    <table class="data-table"><thead><tr><th>Unidad que reporta</th><th>Comandante</th><th>Tipo</th><th>Funcionario</th><th>Cargo</th><th>Unidad funcionario</th><th>Inicio</th><th>Fin</th><th>D&iacute;as</th><th>PSI</th></tr></thead><tbody>{rows or '<tr><td colspan="10">No hay funcionarios en novedad para esta fecha.</td></tr>'}</tbody></table>
 </section>
 """
     return layout(content, user)
@@ -2017,7 +2018,8 @@ def reporte_page(parte_id, user=None):
     nov_rows = ""
     for novedad in reporte["novedades"]:
         funcionario = f"{novedad['grado']} {novedad['nombres']} {novedad['apellidos']}"
-        nov_rows += f"<tr><td>{h(novedad['tipo_novedad'])}</td><td>{h(funcionario)}</td><td>{h(CATEGORIAS.get(novedad['categoria'], novedad['categoria']))}</td><td>{h(novedad['fecha_inicio'])} {h(novedad['hora_inicio'])}</td><td>{h(novedad['fecha_fin'])} {h(novedad['hora_fin'])}</td><td>{h(novedad['dias_calculados'])}</td><td>{h(novedad.get('solicitud_psi') or '-')}</td></tr>"
+        cargo = novedad.get("cargo") or "Sin cargo registrado"
+        nov_rows += f"<tr><td>{h(novedad['tipo_novedad'])}</td><td>{h(funcionario)}</td><td>{h(cargo)}</td><td>{h(novedad['fecha_inicio'])} {h(novedad['hora_inicio'])}</td><td>{h(novedad['fecha_fin'])} {h(novedad['hora_fin'])}</td><td>{h(novedad['dias_calculados'])}</td><td>{h(novedad.get('solicitud_psi') or '-')}</td></tr>"
     if not nov_rows:
         nov_rows = "<tr><td colspan='7'>Sin novedades registradas.</td></tr>"
 
@@ -2032,7 +2034,7 @@ def reporte_page(parte_id, user=None):
     <h2>Fuerza disponible</h2>
     <table class="data-table"><thead><tr><th>Categor&iacute;a</th><th>Efectiva</th><th>En novedades</th><th>Disponible</th></tr></thead><tbody>{fuerza_rows}</tbody></table>
     <h2>Novedades</h2>
-    <table class="data-table"><thead><tr><th>Tipo</th><th>Funcionario</th><th>Categor&iacute;a</th><th>Inicio</th><th>Fin</th><th>D&iacute;as</th><th>PSI</th></tr></thead><tbody>{nov_rows}</tbody></table>
+    <table class="data-table"><thead><tr><th>Tipo</th><th>Funcionario</th><th>Cargo</th><th>Inicio</th><th>Fin</th><th>D&iacute;as</th><th>PSI</th></tr></thead><tbody>{nov_rows}</tbody></table>
     <h2>Observaciones</h2>
     <p>{h(parte.get('observaciones') or 'Sin observaciones.')}</p>
 </section>
