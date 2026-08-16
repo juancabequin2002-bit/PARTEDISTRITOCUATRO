@@ -692,8 +692,8 @@ label {
     display: grid;
     place-items: center;
     background:
-        radial-gradient(circle at 50% 0, rgba(19, 137, 70, .85), transparent 36%),
-        linear-gradient(135deg, var(--green-950), var(--green-800));
+        linear-gradient(90deg, rgba(0, 28, 14, .18), rgba(0, 56, 29, .52)),
+        url("/static/login_background_distrito.png") center center / cover no-repeat;
 }
 
 .login-card {
