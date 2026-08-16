@@ -169,6 +169,16 @@ def verify_password(password, stored):
     return secrets.compare_digest(password, stored)
 
 
+def find_user_by_login(conn, login):
+    login = (login or "").strip()
+    if texto_orden(login) == texto_orden(ADMIN_USER):
+        login = ADMIN_USER
+    return conn.execute(
+        "SELECT * FROM usuarios WHERE UPPER(email) = UPPER(?)",
+        (login,),
+    ).fetchone()
+
+
 def record_security_event(ip, usuario, evento, detalle):
     with db() as conn:
         conn.execute(
@@ -2338,14 +2348,12 @@ class Handler(BaseHTTPRequestHandler):
             ip = self.client_ip()
             form = parse_qs(self.read_body())
             email = form.get("email", [""])[0].strip()
-            if email.upper() == ADMIN_USER.upper():
-                email = ADMIN_USER
             password = form.get("password", [""])[0]
             if self.is_login_blocked(ip):
                 record_security_event(ip, email, "Login bloqueado", "Demasiados intentos fallidos.")
                 return self.send_html(login_page("Acceso bloqueado temporalmente por varios intentos fallidos."), 429)
             with db() as conn:
-                user = conn.execute("SELECT * FROM usuarios WHERE email = ?", (email,)).fetchone()
+                user = find_user_by_login(conn, email)
             if not user or not verify_password(password, user["password"]):
                 self.register_login_failure(ip)
                 record_security_event(ip, email, "Login fallido", "Usuario o contrasena incorrectos.")
