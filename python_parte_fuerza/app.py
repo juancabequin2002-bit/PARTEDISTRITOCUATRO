@@ -1666,7 +1666,7 @@ def funcionarios_page(user=None):
             unidades = ordenar_unidades(rows_dict(conn.execute("SELECT * FROM unidades")))
 
     rows = "".join(
-        f"<tr><td>{f['grado']}</td><td>{f['nombres']} {f['apellidos']}</td><td>{CATEGORIAS[f['categoria']]}</td><td>{f['unidad']}</td><td>{f['estado']}</td></tr>"
+        f"<tr><td>{h(f['grado'])}</td><td>{h(f['nombres'])} {h(f['apellidos'])}</td><td>{h(CATEGORIAS[f['categoria']])}</td><td>{h(f.get('cargo') or 'Sin cargo registrado')}</td><td>{h(f['unidad'])}</td><td>{h(f['estado'])}</td></tr>"
         for f in funcionarios
     )
     unidad_options = "".join(f"<option value='{u['id']}'>{h(u['nombre'])}</option>" for u in unidades)
@@ -1675,10 +1675,11 @@ def funcionarios_page(user=None):
     content = f"""
 <section class="panel">
     <h2>Registrar funcionario</h2>
-    <form method="POST" action="/funcionarios" class="grid six">
+    <form method="POST" action="/funcionarios" class="grid seven">
         <input name="grado" placeholder="Grado" required>
         <input name="nombres" placeholder="Nombres" required>
         <input name="apellidos" placeholder="Apellidos" required>
+        <input name="cargo" placeholder="Cargo que ocupa" required>
         <select name="categoria">{categoria_options}</select>
         <select name="unidad_id">{unidad_options}</select>
         <button class="btn primary">Guardar</button>
@@ -1686,7 +1687,7 @@ def funcionarios_page(user=None):
 </section>
 <section class="panel">
     <h2>Funcionarios</h2>
-    <table class="data-table"><thead><tr><th>Grado</th><th>Funcionario</th><th>Categor&iacute;a</th><th>Unidad</th><th>Estado</th></tr></thead><tbody>{rows}</tbody></table>
+    <table class="data-table"><thead><tr><th>Grado</th><th>Funcionario</th><th>Categor&iacute;a</th><th>Cargo</th><th>Unidad</th><th>Estado</th></tr></thead><tbody>{rows}</tbody></table>
 </section>
 """
     return layout(content, user)
@@ -2393,11 +2394,12 @@ class Handler(BaseHTTPRequestHandler):
             unidad_id = user.get("unidad_id") if user.get("rol") == "unidad" else form.get("unidad_id", ["1"])[0]
             with db() as conn:
                 conn.execute(
-                    "INSERT INTO funcionarios (grado, nombres, apellidos, categoria, unidad_id) VALUES (?, ?, ?, ?, ?)",
+                    "INSERT INTO funcionarios (grado, nombres, apellidos, cargo, categoria, unidad_id) VALUES (?, ?, ?, ?, ?, ?)",
                     (
                         form.get("grado", [""])[0],
                         form.get("nombres", [""])[0],
                         form.get("apellidos", [""])[0],
+                        form.get("cargo", [""])[0],
                         form.get("categoria", [""])[0],
                         unidad_id,
                     ),

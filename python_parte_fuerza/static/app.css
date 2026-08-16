@@ -339,6 +339,11 @@ label {
     align-items: end;
 }
 
+.grid.seven {
+    grid-template-columns: .7fr 1fr 1fr 1.35fr 1fr 1.25fr .9fr;
+    align-items: end;
+}
+
 .grid.main-grid {
     grid-template-columns: minmax(280px, 1fr) 64px minmax(460px, 1.68fr);
     align-items: start;
