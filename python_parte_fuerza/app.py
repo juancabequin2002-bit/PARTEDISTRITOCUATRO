@@ -932,8 +932,7 @@ def reporte_data(parte_id):
 def reportes_filtrados(query, user=None):
     user = user or {}
     params = parse_qs(query)
-    fecha_desde = params.get("fecha_desde", [""])[0]
-    fecha_hasta = params.get("fecha_hasta", [""])[0]
+    fecha = params.get("fecha", [""])[0] or params.get("fecha_desde", [""])[0]
     unidad_id = params.get("unidad_id", [""])[0]
     where = []
     values = []
@@ -943,12 +942,9 @@ def reportes_filtrados(query, user=None):
     elif unidad_id:
         where.append("unidad_id = ?")
         values.append(unidad_id)
-    if fecha_desde:
-        where.append("fecha >= ?")
-        values.append(fecha_desde)
-    if fecha_hasta:
-        where.append("fecha <= ?")
-        values.append(fecha_hasta)
+    if fecha:
+        where.append("fecha = ?")
+        values.append(fecha)
     where_sql = "WHERE " + " AND ".join(where) if where else ""
     with db() as conn:
         ids = [row["id"] for row in conn.execute(f"SELECT id FROM partes {where_sql} ORDER BY fecha DESC, id DESC", values)]
@@ -1858,8 +1854,7 @@ def novedades_page(user=None, query=""):
 def historial_page(user=None, query=""):
     user = user or {}
     params = parse_qs(query)
-    fecha_desde = params.get("fecha_desde", [""])[0]
-    fecha_hasta = params.get("fecha_hasta", [""])[0]
+    fecha = params.get("fecha", [""])[0] or params.get("fecha_desde", [""])[0]
     unidad_id = params.get("unidad_id", [""])[0]
 
     where = []
@@ -1870,12 +1865,9 @@ def historial_page(user=None, query=""):
     elif unidad_id:
         where.append("p.unidad_id = ?")
         values.append(unidad_id)
-    if fecha_desde:
-        where.append("p.fecha >= ?")
-        values.append(fecha_desde)
-    if fecha_hasta:
-        where.append("p.fecha <= ?")
-        values.append(fecha_hasta)
+    if fecha:
+        where.append("p.fecha = ?")
+        values.append(fecha)
 
     where_sql = "WHERE " + " AND ".join(where) if where else ""
     with db() as conn:
@@ -1923,11 +1915,10 @@ def historial_page(user=None, query=""):
         unit_filter = f"<label>Unidad<select name=\"unidad_id\">{unidad_options}</select></label>"
     filters = f"""
     <form class="filters" method="GET" action="/historial">
-        <label>Desde<input type="date" name="fecha_desde" value="{h(fecha_desde)}"></label>
-        <label>Hasta<input type="date" name="fecha_hasta" value="{h(fecha_hasta)}"></label>
+        <label>Fecha del reporte<input type="date" name="fecha" value="{h(fecha)}"></label>
         {unit_filter}
         <button class="btn outline" type="submit">Filtrar</button>
-        <a class="btn primary" href="/pdf-todos?fecha_desde={h(fecha_desde)}&fecha_hasta={h(fecha_hasta)}&unidad_id={h(unidad_id)}">Descargar todo en PDF</a>
+        <a class="btn primary" href="/pdf-todos?fecha={h(fecha)}&unidad_id={h(unidad_id)}">Descargar todo en PDF</a>
     </form>
     """
     general_report_link = '<a class="btn outline" href="/reporte-general">Reporte General</a>' if user.get("rol") == "admin" else ""
