@@ -334,7 +334,7 @@
     }
 
     async function guardarParte(event) {
-        event.preventDefault();
+        if (event) event.preventDefault();
         if (!$("unidad_id").value) {
             alert("Debe seleccionar la unidad que reporta el parte.");
             return;
@@ -377,7 +377,13 @@
         $("psiField").style.display = psiRequerido($("tipo_novedad").value) ? "block" : "none";
     });
     $("guardarNovedad").addEventListener("click", guardarNovedad);
-    $("parteForm").addEventListener("submit", guardarParte);
+    $("guardarParteBtn").addEventListener("click", guardarParte);
+    $("parteForm").addEventListener("submit", (event) => event.preventDefault());
+    $("parteForm").addEventListener("keydown", (event) => {
+        if (event.key === "Enter" && event.target.tagName !== "TEXTAREA") {
+            event.preventDefault();
+        }
+    });
 
     $("novedadesBody").addEventListener("click", (event) => {
         const edit = event.target.dataset.edit;

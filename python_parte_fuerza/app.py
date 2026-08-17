@@ -929,14 +929,18 @@ def reporte_data(parte_id):
     return {"parte": parte, "novedades": novedades, "efectiva": efectiva, "en_novedad": en_novedad, "disponible": disponible}
 
 
-def reportes_filtrados(query):
+def reportes_filtrados(query, user=None):
+    user = user or {}
     params = parse_qs(query)
     fecha_desde = params.get("fecha_desde", [""])[0]
     fecha_hasta = params.get("fecha_hasta", [""])[0]
     unidad_id = params.get("unidad_id", [""])[0]
     where = []
     values = []
-    if unidad_id:
+    if user.get("rol") == "unidad":
+        where.append("unidad_id = ?")
+        values.append(user.get("unidad_id"))
+    elif unidad_id:
         where.append("unidad_id = ?")
         values.append(unidad_id)
     if fecha_desde:
@@ -1464,7 +1468,7 @@ def layout(content, user=None):
     unit_name = get_unit_name(user.get("unidad_id")) if user.get("rol") == "unidad" else "ADMINISTRADOR GENERAL"
     novedades_link = '<a class="nav-link" href="/novedades"><span class="nav-ico">NV</span><span>Novedades</span></a>' if user.get("rol") == "admin" else ""
     general_link = '<a class="nav-link" href="/reporte-general"><span class="nav-ico">RG</span><span>Reporte General</span></a>' if user.get("rol") == "admin" else ""
-    report_link = '<a class="nav-link" href="/historial"><span class="nav-ico">RP</span><span>Reportes de Unidades</span></a>' if user.get("rol") == "admin" else ""
+    report_link = '<a class="nav-link" href="/historial"><span class="nav-ico">RP</span><span>Reportes de Unidades</span></a>'
     users_link = '<a class="nav-link" href="/usuarios"><span class="nav-ico">US</span><span>Usuarios</span></a>' if user.get("rol") == "admin" else ""
     ingresos_link = '<a class="nav-link" href="/ingresos"><span class="nav-ico">IN</span><span>Ingresos</span></a>' if user.get("rol") == "admin" else ""
     security_link = '<a class="nav-link" href="/seguridad"><span class="nav-ico">SG</span><span>Seguridad</span></a>' if user.get("rol") == "admin" else ""
@@ -1538,7 +1542,7 @@ def parte_page(user=None):
     unidad_options = "<option value='' selected>Seleccione unidad...</option>"
     unidad_options += "".join(f"<option value='{u['id']}'>{h(u['nombre'])}</option>" for u in unidades)
     tipos_options = "".join(f"<option>{tipo}</option>" for tipo in TIPOS_NOVEDAD)
-    report_button = '<a class="btn outline full" href="/historial">Reportes Guardados</a>' if user.get("rol") == "admin" else ""
+    report_button = '<a class="btn outline full" href="/historial">Reportes Guardados</a>'
 
     content = f"""
 <form id="parteForm" class="parte-form">
@@ -1638,7 +1642,7 @@ def parte_page(user=None):
         <section class="panel"><h2>Observaciones del comandante</h2><textarea id="observaciones" rows="5"></textarea></section>
         <section class="panel actions-panel no-print">
             <h2>Acciones</h2>
-            <button class="btn primary full" type="submit">Guardar Parte de Fuerza</button>
+            <button class="btn primary full" id="guardarParteBtn" type="button">Guardar Parte de Fuerza</button>
             <button class="btn outline full" type="button" onclick="window.print()">Imprimir Parte</button>
             {report_button}
         </section>
@@ -1894,31 +1898,40 @@ def historial_page(user=None, query=""):
     for parte in partes:
         efectiva = sum(parte_efectiva(parte).values())
         disponible = max(0, efectiva - parte["novedades"])
+        delete_action = ""
+        if user.get("rol") == "admin":
+            delete_action = f"""
+                <form method="POST" action="/eliminar-parte" onsubmit="return confirm('¿Eliminar este parte y sus novedades?')">
+                    <input type="hidden" name="id" value="{parte['id']}">
+                    <button class="btn small danger" type="submit">Eliminar</button>
+                </form>
+            """
         rows += f"""
         <tr>
             <td>{h(parte['fecha'])}</td><td>{h(parte['unidad'])}</td><td>{h(parte['comandante'])}</td><td>{efectiva}</td><td>{parte['novedades']}</td><td>{disponible}</td>
             <td class="actions-inline">
                 <a class="btn small outline" href="/reporte?id={parte['id']}">Ver</a>
                 <a class="btn small primary" href="/pdf?id={parte['id']}">PDF</a>
-                <form method="POST" action="/eliminar-parte" onsubmit="return confirm('¿Eliminar este parte y sus novedades?')">
-                    <input type="hidden" name="id" value="{parte['id']}">
-                    <button class="btn small danger" type="submit">Eliminar</button>
-                </form>
+                {delete_action}
             </td>
         </tr>"""
 
+    unit_filter = ""
+    if user.get("rol") == "admin":
+        unit_filter = f"<label>Unidad<select name=\"unidad_id\">{unidad_options}</select></label>"
     filters = f"""
     <form class="filters" method="GET" action="/historial">
         <label>Desde<input type="date" name="fecha_desde" value="{h(fecha_desde)}"></label>
         <label>Hasta<input type="date" name="fecha_hasta" value="{h(fecha_hasta)}"></label>
-        <label>Unidad<select name="unidad_id">{unidad_options}</select></label>
+        {unit_filter}
         <button class="btn outline" type="submit">Filtrar</button>
         <a class="btn primary" href="/pdf-todos?fecha_desde={h(fecha_desde)}&fecha_hasta={h(fecha_hasta)}&unidad_id={h(unidad_id)}">Descargar todo en PDF</a>
     </form>
     """
+    general_report_link = '<a class="btn outline" href="/reporte-general">Reporte General</a>' if user.get("rol") == "admin" else ""
     content = f"""
 <section class="panel">
-    <div class="section-head"><h2>Reportes de partes</h2><div class="actions-inline"><a class="btn outline" href="/reporte-general">Reporte General</a><a class="btn primary" href="/parte">Nuevo Parte</a></div></div>
+    <div class="section-head"><h2>Reportes de partes</h2><div class="actions-inline">{general_report_link}<a class="btn primary" href="/parte">Nuevo Parte</a></div></div>
     {filters}
     <table class="data-table"><thead><tr><th>Fecha</th><th>Unidad</th><th>Comandante quien reporta</th><th>Fuerza efectiva</th><th>Novedades</th><th>Disponible</th><th>Acci&oacute;n</th></tr></thead><tbody>{rows or '<tr><td colspan="7">No hay partes guardados.</td></tr>'}</tbody></table>
 </section>
@@ -2269,9 +2282,6 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json({"error": "No autorizado"}, 403)
             return self.send_json({"novedades": novedades_vigentes(fecha, hora, unidad_id)})
         if path == "/historial":
-            if user.get("rol") != "admin":
-                record_security_event(self.client_ip(), user.get("email", ""), "Acceso no autorizado", path)
-                return self.redirect("/parte")
             return self.send_html(historial_page(user, parsed.query))
         if path == "/reporte-general":
             if user.get("rol") != "admin":
@@ -2302,10 +2312,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/video-fondo":
             return self.send_video()
         if path == "/pdf-todos":
-            if user.get("rol") != "admin":
-                record_security_event(self.client_ip(), user.get("email", ""), "Acceso no autorizado", path)
-                return self.redirect("/parte")
-            reportes = reportes_filtrados(parsed.query)
+            reportes = reportes_filtrados(parsed.query, user)
             return self.send_pdf(pdf_todos(reportes), "reportes_partes.pdf")
         if path == "/pdf-general":
             if user.get("rol") != "admin":
