@@ -1543,7 +1543,8 @@ def parte_page(user=None):
     unidad_options = "<option value='' selected>Seleccione unidad...</option>"
     unidad_options += "".join(f"<option value='{u['id']}'>{h(u['nombre'])}</option>" for u in unidades)
     tipos_options = "".join(f"<option>{tipo}</option>" for tipo in TIPOS_NOVEDAD)
-    report_button = '<a class="btn outline full" href="/historial">Reportes Guardados</a>'
+    report_button_label = "Reportes de Unidades" if user.get("rol") == "admin" else "Reportes Guardados"
+    report_button = f'<a class="btn outline full" href="/historial">{report_button_label}</a>'
 
     content = f"""
 <form id="parteForm" class="parte-form">
