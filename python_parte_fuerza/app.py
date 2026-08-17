@@ -1468,7 +1468,8 @@ def layout(content, user=None):
     unit_name = get_unit_name(user.get("unidad_id")) if user.get("rol") == "unidad" else "ADMINISTRADOR GENERAL"
     novedades_link = '<a class="nav-link" href="/novedades"><span class="nav-ico">NV</span><span>Novedades</span></a>' if user.get("rol") == "admin" else ""
     general_link = '<a class="nav-link" href="/reporte-general"><span class="nav-ico">RG</span><span>Reporte General</span></a>' if user.get("rol") == "admin" else ""
-    report_link = '<a class="nav-link" href="/historial"><span class="nav-ico">RP</span><span>Reportes de Unidades</span></a>'
+    report_label = "Reportes de Unidades" if user.get("rol") == "admin" else "Reportes Guardados"
+    report_link = f'<a class="nav-link" href="/historial"><span class="nav-ico">RP</span><span>{report_label}</span></a>'
     users_link = '<a class="nav-link" href="/usuarios"><span class="nav-ico">US</span><span>Usuarios</span></a>' if user.get("rol") == "admin" else ""
     ingresos_link = '<a class="nav-link" href="/ingresos"><span class="nav-ico">IN</span><span>Ingresos</span></a>' if user.get("rol") == "admin" else ""
     security_link = '<a class="nav-link" href="/seguridad"><span class="nav-ico">SG</span><span>Seguridad</span></a>' if user.get("rol") == "admin" else ""
