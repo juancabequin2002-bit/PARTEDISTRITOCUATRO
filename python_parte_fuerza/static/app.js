@@ -333,6 +333,23 @@
         };
     }
 
+    function mostrarParteGuardado(message) {
+        const modal = document.createElement("div");
+        modal.className = "save-modal";
+        modal.innerHTML = `
+            <div class="save-modal-card" role="dialog" aria-modal="true" aria-labelledby="saveModalTitle">
+                <h2 id="saveModalTitle">Parte guardado correctamente</h2>
+                <p>${message || "La información fue registrada en reportes."}</p>
+                <div class="save-modal-actions">
+                    <a class="btn outline" href="/historial">Ver reportes</a>
+                    <a class="btn danger" href="/logout">Cerrar sesión</a>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        modal.querySelector("a").focus();
+    }
+
     async function guardarParte(event) {
         if (event) event.preventDefault();
         if (!$("unidad_id").value) {
@@ -349,8 +366,7 @@
             alert(data.error || "No fue posible guardar el parte.");
             return;
         }
-        alert(data.message);
-        window.location.href = "/historial";
+        mostrarParteGuardado(data.message);
     }
 
     document.querySelectorAll(".efectiva").forEach((input) => input.addEventListener("input", calcularFuerzaDisponible));

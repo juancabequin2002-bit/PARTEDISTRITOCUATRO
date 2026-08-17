@@ -650,6 +650,43 @@ label {
     margin: 0;
 }
 
+.save-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: rgba(0, 20, 10, .62);
+}
+
+.save-modal-card {
+    width: min(460px, 100%);
+    border-radius: 14px;
+    padding: 26px;
+    background: #fff;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, .35);
+    border-top: 8px solid var(--green-800);
+}
+
+.save-modal-card h2 {
+    margin: 0 0 10px;
+    color: var(--green-950);
+    font-size: 24px;
+}
+
+.save-modal-card p {
+    margin: 0 0 22px;
+    color: #24352c;
+    line-height: 1.5;
+}
+
+.save-modal-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
 .summary-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
