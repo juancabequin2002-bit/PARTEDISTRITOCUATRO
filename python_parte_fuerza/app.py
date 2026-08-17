@@ -932,7 +932,7 @@ def reporte_data(parte_id):
 def reportes_filtrados(query, user=None):
     user = user or {}
     params = parse_qs(query)
-    fecha = params.get("fecha", [""])[0] or params.get("fecha_desde", [""])[0]
+    fecha = params.get("fecha", [""])[0]
     unidad_id = params.get("unidad_id", [""])[0]
     where = []
     values = []
@@ -1854,7 +1854,7 @@ def novedades_page(user=None, query=""):
 def historial_page(user=None, query=""):
     user = user or {}
     params = parse_qs(query)
-    fecha = params.get("fecha", [""])[0] or params.get("fecha_desde", [""])[0]
+    fecha = params.get("fecha", [""])[0]
     unidad_id = params.get("unidad_id", [""])[0]
 
     where = []
@@ -1915,7 +1915,7 @@ def historial_page(user=None, query=""):
         unit_filter = f"<label>Unidad<select name=\"unidad_id\">{unidad_options}</select></label>"
     filters = f"""
     <form class="filters" method="GET" action="/historial">
-        <label>Fecha del reporte<input type="date" name="fecha" value="{h(fecha)}"></label>
+        <label>Seleccione la fecha que desea verificar<input type="date" name="fecha" value="{h(fecha)}"></label>
         {unit_filter}
         <button class="btn outline" type="submit">Filtrar</button>
         <a class="btn primary" href="/pdf-todos?fecha={h(fecha)}&unidad_id={h(unidad_id)}">Descargar todo en PDF</a>
