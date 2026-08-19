@@ -1460,15 +1460,14 @@ def render_report(pdf, reporte):
 
     pdf.y = top - banner_h - 16
 
-    meta_h = 72
+    meta_h = 58
     pdf.rect(x0, pdf.y, x1 - x0, meta_h, fill="0.933 0.973 0.949")
     pdf.rect(x0, pdf.y, x1 - x0, meta_h)
     inner = x0 + 12
     pdf.label_text(inner, pdf.y - 18, "Unidad:", parte["unidad"], 10)
     pdf.label_text(inner, pdf.y - 34, "Fecha:", f"{parte['fecha']}", 10)
     pdf.label_text(inner + 220, pdf.y - 34, "Hora:", parte["hora_parte"], 10)
-    pdf.label_text(inner, pdf.y - 50, "Guardado el:", formato_fecha_hora(parte.get("creado_en")), 10)
-    pdf.label_text(inner, pdf.y - 66, "Comandante:", parte["comandante"], 10)
+    pdf.label_text(inner, pdf.y - 50, "Comandante:", parte["comandante"], 10)
     pdf.y -= meta_h + 12
 
     pdf.heading("Fuerza disponible")
@@ -1541,15 +1540,15 @@ def pdf_reporte_general(data):
 
     pdf.heading("Partes reportados por unidades")
     unidades_rows = [
-        [item["fecha"], item["hora"], item["guardado"], item["unidad"], item["comandante"], item["efectiva"], item["novedades"], item["disponible"]]
+        [item["fecha"], item["hora"], item["unidad"], item["comandante"], item["efectiva"], item["novedades"], item["disponible"]]
         for item in data["unidades"]
-    ] or [["-", "-", "-", "Sin partes guardados para esta fecha", "-", "-", "-", "-"]]
+    ] or [["-", "-", "Sin partes guardados para esta fecha", "-", "-", "-", "-"]]
     pdf.table(
-        ["Fecha", "Hora", "Guardado", "Unidad", "Comandante", "Efectiva", "Novedades", "Disponible"],
+        ["Fecha", "Hora", "Unidad", "Comandante", "Efectiva", "Novedades", "Disponible"],
         unidades_rows,
-        [48, 38, 82, 115, 115, 45, 50, 47],
+        [58, 45, 145, 135, 55, 60, 60],
         hs=8,
-        cs=7,
+        cs=8,
     )
 
     pdf.heading("Fuerza disponible consolidada")
@@ -2057,7 +2056,7 @@ def historial_page(user=None, query=""):
             """
         rows += f"""
         <tr>
-            <td>{h(parte['fecha'])}<br><small>{h(parte['hora_parte'])}</small></td><td>{h(formato_fecha_hora(parte.get('creado_en')))}</td><td>{h(parte['unidad'])}</td><td>{h(parte['comandante'])}</td><td>{efectiva}</td><td>{parte['novedades']}</td><td>{disponible}</td>
+            <td>{h(parte['fecha'])}<br><small>{h(parte['hora_parte'])}</small></td><td>{h(parte['unidad'])}</td><td>{h(parte['comandante'])}</td><td>{efectiva}</td><td>{parte['novedades']}</td><td>{disponible}</td>
             <td class="actions-inline">
                 <a class="btn small outline" href="/reporte?id={parte['id']}">Ver</a>
                 <a class="btn small primary" href="/pdf?id={parte['id']}">PDF</a>
@@ -2081,7 +2080,7 @@ def historial_page(user=None, query=""):
 <section class="panel">
     <div class="section-head"><h2>Reportes de partes</h2><div class="actions-inline">{general_report_link}<a class="btn primary" href="/parte">Nuevo Parte</a></div></div>
     {filters}
-    <table class="data-table"><thead><tr><th>Fecha y hora del parte</th><th>Guardado el</th><th>Unidad</th><th>Comandante quien reporta</th><th>Fuerza efectiva</th><th>Novedades</th><th>Disponible</th><th>Acci&oacute;n</th></tr></thead><tbody>{rows or '<tr><td colspan="8">No hay partes guardados.</td></tr>'}</tbody></table>
+    <table class="data-table"><thead><tr><th>Fecha y hora del parte</th><th>Unidad</th><th>Comandante quien reporta</th><th>Fuerza efectiva</th><th>Novedades</th><th>Disponible</th><th>Acci&oacute;n</th></tr></thead><tbody>{rows or '<tr><td colspan="7">No hay partes guardados.</td></tr>'}</tbody></table>
 </section>
 """
     return layout(content, user)
@@ -2105,7 +2104,6 @@ def reporte_general_page(user=None, query=""):
         <tr>
             <td>{h(item['fecha'])}</td>
             <td>{h(item['hora'])}</td>
-            <td>{h(item['guardado'])}</td>
             <td>{h(item['unidad'])}</td>
             <td>{h(item['comandante'])}</td>
             <td>{item['efectiva']}</td>
@@ -2113,7 +2111,7 @@ def reporte_general_page(user=None, query=""):
             <td>{item['disponible']}</td>
         </tr>"""
     if not unidades_rows:
-        unidades_rows = "<tr><td colspan='8'>No hay partes guardados para esta fecha.</td></tr>"
+        unidades_rows = "<tr><td colspan='7'>No hay partes guardados para esta fecha.</td></tr>"
 
     fuerza_rows = "".join(
         f"<tr><td>{label}</td><td>{data['efectiva'][key]}</td><td>{data['en_novedad'][key]}</td><td>{data['disponible'][key]}</td></tr>"
@@ -2156,7 +2154,7 @@ def reporte_general_page(user=None, query=""):
         <div class="summary-item success"><span>Fuerza disponible</span><strong>{total_disponible}</strong></div>
     </div>
     <h2>Partes reportados por unidades</h2>
-    <table class="data-table"><thead><tr><th>Fecha</th><th>Hora</th><th>Guardado el</th><th>Unidad</th><th>Comandante quien reporta</th><th>Efectiva</th><th>Novedades</th><th>Disponible</th></tr></thead><tbody>{unidades_rows}</tbody></table>
+    <table class="data-table"><thead><tr><th>Fecha</th><th>Hora</th><th>Unidad</th><th>Comandante quien reporta</th><th>Efectiva</th><th>Novedades</th><th>Disponible</th></tr></thead><tbody>{unidades_rows}</tbody></table>
     <h2>Fuerza disponible consolidada</h2>
     <table class="data-table"><thead><tr><th>Categor&iacute;a</th><th>Efectiva</th><th>En novedades</th><th>Disponible</th></tr></thead><tbody>{fuerza_rows}</tbody></table>
     <h2>Novedades del d&iacute;a</h2>
@@ -2194,7 +2192,6 @@ def reporte_page(parte_id, user=None):
     <div class="report-meta">
         <strong>Unidad:</strong> {h(parte['unidad'])}<br>
         <strong>Fecha:</strong> {h(parte['fecha'])} <strong>Hora:</strong> {h(parte['hora_parte'])}<br>
-        <strong>Guardado el:</strong> {h(formato_fecha_hora(parte.get('creado_en')))}<br>
         <strong>Comandante:</strong> {h(parte['comandante'])}
     </div>
     <h2>Fuerza disponible</h2>
