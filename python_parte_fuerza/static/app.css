@@ -874,8 +874,9 @@ body.novedad-modal-open::before {
     width: 100%;
     display: block;
     border-radius: 12px;
-    object-fit: contain;
-    background: #fff;
+    object-fit: cover;
+    object-position: center;
+    background: transparent;
     margin-bottom: 4px;
     box-shadow: 0 10px 26px rgba(0, 42, 21, .22);
     aspect-ratio: 16 / 9;
