@@ -826,9 +826,33 @@ body.novedad-modal-open::before {
     display: grid;
     place-items: center;
     padding: 24px;
+    position: relative;
+    overflow: hidden;
     background:
-        linear-gradient(90deg, rgba(0, 28, 14, .08), rgba(0, 56, 29, .32)),
+        linear-gradient(90deg, rgba(0, 28, 14, .42), rgba(0, 56, 29, .36)),
         url("/static/login_background_distrito.png") center center / cover no-repeat;
+}
+
+.login-page::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background:
+        radial-gradient(circle at 50% 48%, rgba(0, 92, 45, .08), rgba(0, 23, 12, .54) 72%),
+        linear-gradient(90deg, rgba(0, 20, 10, .18), rgba(0, 57, 29, .08), rgba(0, 20, 10, .20));
+    pointer-events: none;
+}
+
+.login-bg-video {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    z-index: 0;
+    filter: saturate(1.2) contrast(1.08) brightness(.82);
 }
 
 .login-card {
@@ -839,6 +863,8 @@ body.novedad-modal-open::before {
     border-radius: 14px;
     background: #fff;
     box-shadow: 0 24px 70px rgba(0, 0, 0, .25);
+    position: relative;
+    z-index: 1;
 }
 
 .login-hero {

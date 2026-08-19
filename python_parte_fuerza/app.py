@@ -37,6 +37,7 @@ STATIC_DIR = BASE_DIR / "static"
 SOURCE_XLSX = BASE_DIR.parent / "personal del distrito.xlsx"
 SOURCE_SEED = BASE_DIR / "personal_seed.json"
 VIDEO_FONDO = STATIC_DIR / "topbar_background.mp4"
+LOGIN_VIDEO_FONDO = STATIC_DIR / "login_background.mp4"
 SESSIONS = {}
 LOGIN_ATTEMPTS = {}
 ADMIN_USER = "DetolPurificacion"
@@ -1638,6 +1639,7 @@ def login_page(error=""):
     <link rel="stylesheet" href="/static/app.css">
 </head>
 <body class="login-page">
+    <video class="login-bg-video" autoplay muted loop playsinline preload="auto" src="/video-login"></video>
     <form method="POST" action="/login" class="login-card" novalidate>
         <img class="login-hero" src="/static/login_parte_fuerza.png" alt="Parte de Fuerza">
         {alert}
@@ -2459,6 +2461,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_pdf(reporte_pdf(reporte), f"parte_{parte_id}.pdf")
         if path == "/video-fondo":
             return self.send_video()
+        if path == "/video-login":
+            return self.send_video(LOGIN_VIDEO_FONDO)
         if path == "/pdf-todos":
             reportes = reportes_filtrados(parsed.query, user)
             return self.send_pdf(pdf_todos(reportes), "reportes_partes.pdf")
@@ -2470,8 +2474,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_pdf(pdf_reporte_general(reporte_general_data(fecha)), f"reporte_general_{fecha}.pdf")
         return self.send_html("No encontrado", 404)
 
-    def send_video(self):
-        path = VIDEO_FONDO
+    def send_video(self, video_path=None):
+        path = video_path or VIDEO_FONDO
         if not path.exists():
             return self.send_html("Video no encontrado", 404)
         size = path.stat().st_size
