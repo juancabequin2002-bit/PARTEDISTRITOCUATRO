@@ -1811,16 +1811,26 @@ def funcionarios_page(user=None):
     user = user or {}
     with db() as conn:
         if user.get("rol") == "unidad":
-            funcionarios = ordenar_funcionarios(rows_dict(conn.execute("SELECT f.*, u.nombre unidad FROM funcionarios f JOIN unidades u ON u.id = f.unidad_id WHERE f.unidad_id = ?", (user.get("unidad_id"),))))
+            funcionarios = ordenar_funcionarios(rows_dict(conn.execute("SELECT f.*, u.nombre unidad FROM funcionarios f JOIN unidades u ON u.id = f.unidad_id WHERE f.unidad_id = ? AND f.estado = 'activo'", (user.get("unidad_id"),))))
             unidades = ordenar_unidades(rows_dict(conn.execute("SELECT * FROM unidades WHERE id = ?", (user.get("unidad_id"),))))
         else:
-            funcionarios = ordenar_funcionarios(rows_dict(conn.execute("SELECT f.*, u.nombre unidad FROM funcionarios f JOIN unidades u ON u.id = f.unidad_id")), por_unidad=True)
+            funcionarios = ordenar_funcionarios(rows_dict(conn.execute("SELECT f.*, u.nombre unidad FROM funcionarios f JOIN unidades u ON u.id = f.unidad_id WHERE f.estado = 'activo'")), por_unidad=True)
             unidades = ordenar_unidades(rows_dict(conn.execute("SELECT * FROM unidades")))
 
-    rows = "".join(
-        f"<tr><td>{h(f['grado'])}</td><td>{h(f['nombres'])} {h(f['apellidos'])}</td><td>{h(CATEGORIAS[f['categoria']])}</td><td>{h(f.get('cargo') or 'Sin cargo registrado')}</td><td>{h(f['unidad'])}</td><td>{h(f['estado'])}</td></tr>"
-        for f in funcionarios
-    )
+    rows = ""
+    for f in funcionarios:
+        delete_action = ""
+        if user.get("rol") == "admin":
+            funcionario_nombre = h(f"{f['grado']} {f['nombres']} {f['apellidos']}")
+            delete_action = f"""
+                <td>
+                    <form method="POST" action="/eliminar-funcionario" onsubmit="return confirm('¿Eliminar al funcionario {funcionario_nombre}?')">
+                        <input type="hidden" name="id" value="{f['id']}">
+                        <button class="btn small danger" type="submit">Eliminar</button>
+                    </form>
+                </td>
+            """
+        rows += f"<tr><td>{h(f['grado'])}</td><td>{h(f['nombres'])} {h(f['apellidos'])}</td><td>{h(CATEGORIAS.get(f['categoria'], f['categoria']))}</td><td>{h(f.get('cargo') or 'Sin cargo registrado')}</td><td>{h(f['unidad'])}</td><td>{h(f['estado'])}</td>{delete_action}</tr>"
     unidad_options = "".join(f"<option value='{u['id']}'>{h(u['nombre'])}</option>" for u in unidades)
     categoria_options = "".join(f"<option value='{k}'>{v}</option>" for k, v in CATEGORIAS.items())
     registro_form = ""
@@ -1844,7 +1854,7 @@ def funcionarios_page(user=None):
 {registro_form}
 <section class="panel">
     <h2>Funcionarios</h2>
-    <table class="data-table"><thead><tr><th>Grado</th><th>Funcionario</th><th>Categor&iacute;a</th><th>Cargo</th><th>Unidad</th><th>Estado</th></tr></thead><tbody>{rows}</tbody></table>
+    <table class="data-table"><thead><tr><th>Grado</th><th>Funcionario</th><th>Categor&iacute;a</th><th>Cargo</th><th>Unidad</th><th>Estado</th>{'<th>Acci&oacute;n</th>' if user.get('rol') == 'admin' else ''}</tr></thead><tbody>{rows or f'<tr><td colspan="{7 if user.get("rol") == "admin" else 6}">No hay funcionarios activos.</td></tr>'}</tbody></table>
 </section>
 """
     return layout(content, user)
@@ -2581,6 +2591,17 @@ class Handler(BaseHTTPRequestHandler):
                         unidad_id,
                     ),
                 )
+            return self.redirect("/funcionarios")
+
+        if parsed.path == "/eliminar-funcionario":
+            user = self.current_user()
+            if user.get("rol") != "admin":
+                record_security_event(self.client_ip(), user.get("email", ""), "Eliminar funcionario no autorizado", parsed.path)
+                return self.send_html("No autorizado", 403)
+            form = parse_qs(self.read_body())
+            funcionario_id = form.get("id", [""])[0].strip()
+            with db() as conn:
+                conn.execute("UPDATE funcionarios SET estado = 'eliminado' WHERE id = ?", (funcionario_id,))
             return self.redirect("/funcionarios")
 
         if parsed.path == "/usuarios":
