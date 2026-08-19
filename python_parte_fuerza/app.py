@@ -1555,8 +1555,18 @@ def parte_page(user=None):
             )
         ), por_unidad=True)
 
-    unidad_options = "<option value='' selected>Seleccione unidad...</option>"
-    unidad_options += "".join(f"<option value='{u['id']}'>{h(u['nombre'])}</option>" for u in unidades)
+    selected_unidad_id = str(user.get("unidad_id") or "") if user.get("rol") == "unidad" else ""
+    efectiva_inicial = {key: 0 for key in CATEGORIAS}
+    if selected_unidad_id:
+        for funcionario in funcionarios:
+            if str(funcionario["unidad_id"]) == selected_unidad_id:
+                efectiva_inicial[funcionario["categoria"]] = efectiva_inicial.get(funcionario["categoria"], 0) + 1
+
+    unidad_options = f"<option value='' {'selected' if not selected_unidad_id else ''}>Seleccione unidad...</option>"
+    unidad_options += "".join(
+        f"<option value='{u['id']}' {'selected' if str(u['id']) == selected_unidad_id else ''}>{h(u['nombre'])}</option>"
+        for u in unidades
+    )
     tipos_options = "".join(f"<option>{tipo}</option>" for tipo in TIPOS_NOVEDAD)
     report_button_label = "Reportes de Unidades" if user.get("rol") == "admin" else "Reportes Guardados"
     report_button = f'<a class="btn outline full" href="/historial">{report_button_label}</a>'
@@ -1580,11 +1590,11 @@ def parte_page(user=None):
                 <table class="data-table">
                     <thead><tr><th>Categor&iacute;a</th><th>Cantidad</th></tr></thead>
                     <tbody>
-                        <tr><td>Oficiales</td><td><input class="qty efectiva" id="efectiva_oficiales" type="number" min="0" value="0"></td></tr>
-                        <tr><td>Nivel Ejecutivo</td><td><input class="qty efectiva" id="efectiva_nivel_ejecutivo" type="number" min="0" value="0"></td></tr>
-                        <tr><td>Patrulleros</td><td><input class="qty efectiva" id="efectiva_patrulleros" type="number" min="0" value="0"></td></tr>
-                        <tr><td>Patrulleros de Polic&iacute;a</td><td><input class="qty efectiva" id="efectiva_patrulleros_policia" type="number" min="0" value="0"></td></tr>
-                        <tr><td>Auxiliares de Polic&iacute;a</td><td><input class="qty efectiva" id="efectiva_auxiliares" type="number" min="0" value="0"></td></tr>
+                        <tr><td>Oficiales</td><td><input class="qty efectiva" id="efectiva_oficiales" type="number" min="0" value="{efectiva_inicial['oficiales']}"></td></tr>
+                        <tr><td>Nivel Ejecutivo</td><td><input class="qty efectiva" id="efectiva_nivel_ejecutivo" type="number" min="0" value="{efectiva_inicial['nivel_ejecutivo']}"></td></tr>
+                        <tr><td>Patrulleros</td><td><input class="qty efectiva" id="efectiva_patrulleros" type="number" min="0" value="{efectiva_inicial['patrulleros']}"></td></tr>
+                        <tr><td>Patrulleros de Polic&iacute;a</td><td><input class="qty efectiva" id="efectiva_patrulleros_policia" type="number" min="0" value="{efectiva_inicial['patrulleros_policia']}"></td></tr>
+                        <tr><td>Auxiliares de Polic&iacute;a</td><td><input class="qty efectiva" id="efectiva_auxiliares" type="number" min="0" value="{efectiva_inicial['auxiliares']}"></td></tr>
                     </tbody>
                     <tfoot><tr><th>Total fuerza efectiva</th><th id="total_efectiva">0</th></tr></tfoot>
                 </table>
