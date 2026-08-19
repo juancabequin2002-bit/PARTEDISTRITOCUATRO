@@ -184,6 +184,8 @@
 
         Object.entries(efectivaIds).forEach(([categoria, id]) => {
             $(id).value = conteo[categoria] || 0;
+            const text = $(`${id}_text`);
+            if (text) text.textContent = conteo[categoria] || 0;
         });
 
         calcularFuerzaDisponible();

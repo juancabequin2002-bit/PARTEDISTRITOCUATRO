@@ -757,6 +757,38 @@ def parte_efectiva(data):
     }
 
 
+def fuerza_efectiva_por_unidad(unidad_id):
+    conteo = {key: 0 for key in CATEGORIAS}
+    if not unidad_id:
+        return conteo
+    with db() as conn:
+        rows = rows_dict(
+            conn.execute(
+                """
+                SELECT categoria, COUNT(*) cantidad
+                FROM funcionarios
+                WHERE unidad_id = ? AND estado = 'activo'
+                GROUP BY categoria
+                """,
+                (unidad_id,),
+            )
+        )
+    for row in rows:
+        if row["categoria"] in conteo:
+            conteo[row["categoria"]] = int(row["cantidad"] or 0)
+    return conteo
+
+
+def aplicar_fuerza_efectiva_unidad(data):
+    efectiva = fuerza_efectiva_por_unidad(data.get("unidad_id"))
+    data["fuerza_efectiva_oficiales"] = efectiva["oficiales"]
+    data["fuerza_efectiva_nivel_ejecutivo"] = efectiva["nivel_ejecutivo"]
+    data["fuerza_efectiva_patrulleros"] = efectiva["patrulleros"]
+    data["fuerza_efectiva_patrulleros_policia"] = efectiva["patrulleros_policia"]
+    data["fuerza_efectiva_auxiliares"] = efectiva["auxiliares"]
+    return data
+
+
 def fecha_hora_actual():
     now = datetime.now(APP_TZ)
     return now.date().isoformat(), now.strftime("%H:%M")
@@ -1558,9 +1590,7 @@ def parte_page(user=None):
     selected_unidad_id = str(user.get("unidad_id") or "") if user.get("rol") == "unidad" else ""
     efectiva_inicial = {key: 0 for key in CATEGORIAS}
     if selected_unidad_id:
-        for funcionario in funcionarios:
-            if str(funcionario["unidad_id"]) == selected_unidad_id:
-                efectiva_inicial[funcionario["categoria"]] = efectiva_inicial.get(funcionario["categoria"], 0) + 1
+        efectiva_inicial = fuerza_efectiva_por_unidad(selected_unidad_id)
 
     unidad_options = f"<option value='' {'selected' if not selected_unidad_id else ''}>Seleccione unidad...</option>"
     unidad_options += "".join(
@@ -1590,11 +1620,11 @@ def parte_page(user=None):
                 <table class="data-table">
                     <thead><tr><th>Categor&iacute;a</th><th>Cantidad</th></tr></thead>
                     <tbody>
-                        <tr><td>Oficiales</td><td><input class="qty efectiva" id="efectiva_oficiales" type="number" min="0" value="{efectiva_inicial['oficiales']}"></td></tr>
-                        <tr><td>Nivel Ejecutivo</td><td><input class="qty efectiva" id="efectiva_nivel_ejecutivo" type="number" min="0" value="{efectiva_inicial['nivel_ejecutivo']}"></td></tr>
-                        <tr><td>Patrulleros</td><td><input class="qty efectiva" id="efectiva_patrulleros" type="number" min="0" value="{efectiva_inicial['patrulleros']}"></td></tr>
-                        <tr><td>Patrulleros de Polic&iacute;a</td><td><input class="qty efectiva" id="efectiva_patrulleros_policia" type="number" min="0" value="{efectiva_inicial['patrulleros_policia']}"></td></tr>
-                        <tr><td>Auxiliares de Polic&iacute;a</td><td><input class="qty efectiva" id="efectiva_auxiliares" type="number" min="0" value="{efectiva_inicial['auxiliares']}"></td></tr>
+                        <tr><td>Oficiales</td><td><strong class="qty-display" id="efectiva_oficiales_text">{efectiva_inicial['oficiales']}</strong><input class="efectiva" id="efectiva_oficiales" type="hidden" value="{efectiva_inicial['oficiales']}"></td></tr>
+                        <tr><td>Nivel Ejecutivo</td><td><strong class="qty-display" id="efectiva_nivel_ejecutivo_text">{efectiva_inicial['nivel_ejecutivo']}</strong><input class="efectiva" id="efectiva_nivel_ejecutivo" type="hidden" value="{efectiva_inicial['nivel_ejecutivo']}"></td></tr>
+                        <tr><td>Patrulleros</td><td><strong class="qty-display" id="efectiva_patrulleros_text">{efectiva_inicial['patrulleros']}</strong><input class="efectiva" id="efectiva_patrulleros" type="hidden" value="{efectiva_inicial['patrulleros']}"></td></tr>
+                        <tr><td>Patrulleros de Polic&iacute;a</td><td><strong class="qty-display" id="efectiva_patrulleros_policia_text">{efectiva_inicial['patrulleros_policia']}</strong><input class="efectiva" id="efectiva_patrulleros_policia" type="hidden" value="{efectiva_inicial['patrulleros_policia']}"></td></tr>
+                        <tr><td>Auxiliares de Polic&iacute;a</td><td><strong class="qty-display" id="efectiva_auxiliares_text">{efectiva_inicial['auxiliares']}</strong><input class="efectiva" id="efectiva_auxiliares" type="hidden" value="{efectiva_inicial['auxiliares']}"></td></tr>
                     </tbody>
                     <tfoot><tr><th>Total fuerza efectiva</th><th id="total_efectiva">0</th></tr></tfoot>
                 </table>
@@ -2491,7 +2521,7 @@ class Handler(BaseHTTPRequestHandler):
 
         if parsed.path == "/api/partes":
             try:
-                data = aplicar_fecha_hora_actual(json.loads(self.read_body()))
+                data = aplicar_fuerza_efectiva_unidad(aplicar_fecha_hora_actual(json.loads(self.read_body())))
                 user = self.current_user()
                 novedades = data.get("novedades", [])
                 validar_novedades(data, novedades)

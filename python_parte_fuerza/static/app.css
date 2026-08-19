@@ -517,6 +517,15 @@ label {
     box-shadow: none;
 }
 
+.qty-display {
+    display: inline-block;
+    min-width: 48px;
+    padding: 4px;
+    text-align: center;
+    font-size: 18px;
+    font-weight: 900;
+}
+
 .flow-arrow {
     padding-top: 170px;
     color: var(--green-800);
