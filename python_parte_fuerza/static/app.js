@@ -135,12 +135,12 @@
         $("total_novedades").textContent = totalNovedades;
         $("totalNovedadesTabla").textContent = totalNovedades;
         $("total_disponible").textContent = totalDisponible;
-        $("res_efectiva").textContent = totalEfectiva;
-        $("res_novedades").textContent = totalNovedades;
-        $("res_disponible").textContent = totalDisponible;
+        setTextIfExists("res_efectiva", totalEfectiva);
+        setTextIfExists("res_novedades", totalNovedades);
+        setTextIfExists("res_disponible", totalDisponible);
         const porcentaje = totalEfectiva ? ((totalDisponible / totalEfectiva) * 100) : 0;
         const porcentajeTexto = totalEfectiva ? `${porcentaje.toFixed(1)}%` : "0%";
-        $("porcentaje_disponible").textContent = porcentajeTexto;
+        setTextIfExists("porcentaje_disponible", porcentajeTexto);
         setTextIfExists("total_efectiva_footer", totalEfectiva);
         setTextIfExists("total_disponible_card", totalDisponible);
         setTextIfExists("force_stat_efectiva", totalEfectiva);

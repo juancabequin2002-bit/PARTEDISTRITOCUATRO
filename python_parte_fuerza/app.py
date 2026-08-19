@@ -1863,18 +1863,6 @@ def parte_page(user=None):
         </section>
     </div>
 
-    <section class="panel summary-card dashboard-summary">
-        <div class="modern-section-title">
-            <h2>Resumen del parte</h2>
-        </div>
-        <div class="summary-metrics">
-            <div class="metric metric-total"><div class="metric-icon">+</div><span>Fuerza Efectiva Total</span><strong id="res_efectiva">0</strong></div>
-            <div class="metric metric-news"><div class="metric-icon">!</div><span>Total en Novedades</span><strong id="res_novedades">0</strong></div>
-            <div class="metric metric-ready"><div class="metric-icon">✓</div><span>Fuerza Disponible</span><strong id="res_disponible">0</strong></div>
-            <div class="metric metric-percent"><div class="metric-icon">%</div><span>Porcentaje Disponible</span><strong id="porcentaje_disponible">0%</strong><div class="metric-progress"><i></i></div></div>
-        </div>
-    </section>
-
     <div class="grid lower-grid command-panel-row">
         <section class="panel observation-panel">
             <div class="modern-section-title compact">
