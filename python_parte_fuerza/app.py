@@ -1754,30 +1754,58 @@ def parte_page(user=None):
 
     <div class="grid main-grid">
         <div class="left-stack">
-            <section class="panel">
-                <h2>1. Fuerza efectiva <small>(total unidad)</small></h2>
-                <table class="data-table">
+            <section class="panel force-card force-effective-card">
+                <div class="force-card-head">
+                    <div class="force-title-group">
+                        <span class="force-icon">+</span>
+                        <div>
+                            <h2>1. Fuerza efectiva</h2>
+                            <p>Total de personal asignado a la unidad</p>
+                        </div>
+                    </div>
+                    <div class="force-head-pill">Total: <strong id="total_efectiva">0</strong></div>
+                </div>
+                <div class="table-scroll">
+                <table class="data-table force-table force-effective-table">
                     <thead><tr><th>Categor&iacute;a</th><th>Cantidad</th></tr></thead>
                     <tbody>
-                        <tr><td>Oficiales</td><td><strong class="qty-display" id="efectiva_oficiales_text">{efectiva_inicial['oficiales']}</strong><input class="efectiva" id="efectiva_oficiales" type="hidden" value="{efectiva_inicial['oficiales']}"></td></tr>
-                        <tr><td>Nivel Ejecutivo</td><td><strong class="qty-display" id="efectiva_nivel_ejecutivo_text">{efectiva_inicial['nivel_ejecutivo']}</strong><input class="efectiva" id="efectiva_nivel_ejecutivo" type="hidden" value="{efectiva_inicial['nivel_ejecutivo']}"></td></tr>
-                        <tr><td>Patrulleros</td><td><strong class="qty-display" id="efectiva_patrulleros_text">{efectiva_inicial['patrulleros']}</strong><input class="efectiva" id="efectiva_patrulleros" type="hidden" value="{efectiva_inicial['patrulleros']}"></td></tr>
-                        <tr><td>Patrulleros de Polic&iacute;a</td><td><strong class="qty-display" id="efectiva_patrulleros_policia_text">{efectiva_inicial['patrulleros_policia']}</strong><input class="efectiva" id="efectiva_patrulleros_policia" type="hidden" value="{efectiva_inicial['patrulleros_policia']}"></td></tr>
-                        <tr><td>Auxiliares de Polic&iacute;a</td><td><strong class="qty-display" id="efectiva_auxiliares_text">{efectiva_inicial['auxiliares']}</strong><input class="efectiva" id="efectiva_auxiliares" type="hidden" value="{efectiva_inicial['auxiliares']}"></td></tr>
+                        <tr><td>Oficiales</td><td><strong class="qty-display force-badge force-badge-blue" id="efectiva_oficiales_text">{efectiva_inicial['oficiales']}</strong><input class="efectiva" id="efectiva_oficiales" type="hidden" value="{efectiva_inicial['oficiales']}"></td></tr>
+                        <tr><td>Nivel Ejecutivo</td><td><strong class="qty-display force-badge force-badge-blue" id="efectiva_nivel_ejecutivo_text">{efectiva_inicial['nivel_ejecutivo']}</strong><input class="efectiva" id="efectiva_nivel_ejecutivo" type="hidden" value="{efectiva_inicial['nivel_ejecutivo']}"></td></tr>
+                        <tr><td>Patrulleros</td><td><strong class="qty-display force-badge force-badge-blue" id="efectiva_patrulleros_text">{efectiva_inicial['patrulleros']}</strong><input class="efectiva" id="efectiva_patrulleros" type="hidden" value="{efectiva_inicial['patrulleros']}"></td></tr>
+                        <tr><td>Patrulleros de Polic&iacute;a</td><td><strong class="qty-display force-badge force-badge-blue" id="efectiva_patrulleros_policia_text">{efectiva_inicial['patrulleros_policia']}</strong><input class="efectiva" id="efectiva_patrulleros_policia" type="hidden" value="{efectiva_inicial['patrulleros_policia']}"></td></tr>
+                        <tr><td>Auxiliares de Polic&iacute;a</td><td><strong class="qty-display force-badge force-badge-blue" id="efectiva_auxiliares_text">{efectiva_inicial['auxiliares']}</strong><input class="efectiva" id="efectiva_auxiliares" type="hidden" value="{efectiva_inicial['auxiliares']}"></td></tr>
                     </tbody>
-                    <tfoot><tr><th>Total fuerza efectiva</th><th id="total_efectiva">0</th></tr></tfoot>
+                    <tfoot><tr><th>Total fuerza efectiva</th><th><span id="total_efectiva_footer">0</span></th></tr></tfoot>
                 </table>
+                </div>
             </section>
 
-            <section class="panel">
-                <h2>3. Fuerza disponible <small>(despu&eacute;s de novedades)</small></h2>
-                <table class="data-table">
+            <section class="panel force-card force-available-card">
+                <div class="force-card-head">
+                    <div class="force-title-group">
+                        <span class="force-icon force-icon-ready">OK</span>
+                        <div>
+                            <h2>3. Fuerza disponible</h2>
+                            <p>Personal disponible despu&eacute;s de novedades</p>
+                        </div>
+                    </div>
+                    <div class="force-head-pill available">Disponibles: <strong id="total_disponible_card">0</strong></div>
+                </div>
+                <div class="force-stats-row">
+                    <div class="force-stat stat-blue"><span id="force_stat_efectiva">0</span><strong>Fuerza efectiva</strong></div>
+                    <div class="force-stat stat-orange"><span id="force_stat_novedades">0</span><strong>En novedades</strong></div>
+                    <div class="force-stat stat-green"><span id="force_stat_disponible">0</span><strong>Disponibles</strong></div>
+                    <div class="force-stat stat-progress"><span id="availableProgressLabel">0% Disponible</span><div class="availability-bar"><i id="availableProgressBar"></i></div></div>
+                </div>
+                <div class="table-scroll">
+                <table class="data-table force-table force-available-table">
                     <thead><tr><th>Categor&iacute;a</th><th>Efectiva</th><th>En novedades</th><th>Disponible</th></tr></thead>
                     <tbody>
-                        {"".join(f"<tr><td>{label}</td><td id='ef_{key}'>0</td><td id='nov_{key}'>0</td><td id='disp_{key}'>0</td></tr>" for key, label in CATEGORIAS.items())}
+                        {"".join(f"<tr><td>{label}</td><td><span class='force-badge force-badge-blue' id='ef_{key}'>0</span></td><td><span class='force-badge force-badge-orange' id='nov_{key}'>0</span></td><td><span class='force-badge force-badge-green' id='disp_{key}'>0</span></td></tr>" for key, label in CATEGORIAS.items())}
                     </tbody>
                     <tfoot><tr><th>Total</th><th id="total_efectiva_2">0</th><th id="total_novedades">0</th><th id="total_disponible">0</th></tr></tfoot>
                 </table>
+                </div>
             </section>
         </div>
 

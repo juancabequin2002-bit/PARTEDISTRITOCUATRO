@@ -32,6 +32,11 @@
         return parseInt($(id).value, 10) || 0;
     }
 
+    function setTextIfExists(id, value) {
+        const el = $(id);
+        if (el) el.textContent = value;
+    }
+
     function dateTime(fecha, hora) {
         if (!fecha || !hora) return null;
         const value = new Date(`${fecha}T${hora}`);
@@ -119,7 +124,9 @@
             totalDisponible += disp;
 
             $(`ef_${categoria}`).textContent = ef;
-            $(`nov_${categoria}`).textContent = nov;
+            const novedadCategoria = $(`nov_${categoria}`);
+            novedadCategoria.textContent = nov;
+            novedadCategoria.classList.toggle("has-value", nov > 0);
             $(`disp_${categoria}`).textContent = disp;
         });
 
@@ -131,7 +138,20 @@
         $("res_efectiva").textContent = totalEfectiva;
         $("res_novedades").textContent = totalNovedades;
         $("res_disponible").textContent = totalDisponible;
-        $("porcentaje_disponible").textContent = totalEfectiva ? `${((totalDisponible / totalEfectiva) * 100).toFixed(1)}%` : "0%";
+        const porcentaje = totalEfectiva ? ((totalDisponible / totalEfectiva) * 100) : 0;
+        const porcentajeTexto = totalEfectiva ? `${porcentaje.toFixed(1)}%` : "0%";
+        $("porcentaje_disponible").textContent = porcentajeTexto;
+        setTextIfExists("total_efectiva_footer", totalEfectiva);
+        setTextIfExists("total_disponible_card", totalDisponible);
+        setTextIfExists("force_stat_efectiva", totalEfectiva);
+        setTextIfExists("force_stat_novedades", totalNovedades);
+        setTextIfExists("force_stat_disponible", totalDisponible);
+        setTextIfExists("availableProgressLabel", `${porcentajeTexto} Disponible`);
+        const progressBar = $("availableProgressBar");
+        if (progressBar) {
+            progressBar.style.width = `${Math.max(0, Math.min(100, porcentaje))}%`;
+            progressBar.className = porcentaje >= 75 ? "high" : porcentaje >= 45 ? "medium" : "low";
+        }
     }
 
     function renderFuncionarios() {
