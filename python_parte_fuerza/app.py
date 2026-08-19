@@ -1698,6 +1698,7 @@ def login_page(error=""):
 </head>
 <body class="login-page">
     <video class="login-bg-video" autoplay muted loop playsinline preload="auto" src="/static/login_background.mp4"></video>
+    <img class="creator-badge" src="/static/creator_badge.png" alt="Creador JuanCabezas">
     <form method="POST" action="/login" class="login-card" novalidate>
         <img class="login-hero" src="/static/login_parte_fuerza.png" alt="Parte de Fuerza">
         {alert}

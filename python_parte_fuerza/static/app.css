@@ -1177,6 +1177,19 @@ body.novedad-modal-open::before {
     filter: saturate(1.2) contrast(1.08) brightness(.82);
 }
 
+.creator-badge {
+    position: fixed;
+    left: 22px;
+    bottom: 18px;
+    z-index: 1;
+    width: clamp(180px, 18vw, 340px);
+    max-height: 80px;
+    object-fit: contain;
+    opacity: .86;
+    filter: drop-shadow(0 10px 24px rgba(0, 0, 0, .45));
+    pointer-events: none;
+}
+
 .login-card {
     width: min(760px, calc(100vw - 32px));
     display: grid;
@@ -1224,6 +1237,12 @@ body.novedad-modal-open::before {
 @media (max-width: 1120px) {
     .login-page {
         padding: 24px;
+    }
+
+    .creator-badge {
+        width: clamp(150px, 28vw, 260px);
+        max-height: 62px;
+        opacity: .76;
     }
 
     .topbar {
@@ -1335,6 +1354,14 @@ body.novedad-modal-open::before {
 @media (max-width: 640px) {
     .content {
         padding: 14px;
+    }
+
+    .creator-badge {
+        left: 12px;
+        bottom: 10px;
+        width: 150px;
+        max-height: 48px;
+        opacity: .68;
     }
 
     .topbar {
