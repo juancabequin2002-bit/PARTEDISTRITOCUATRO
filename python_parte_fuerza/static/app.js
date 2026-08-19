@@ -416,7 +416,6 @@
         modal.innerHTML = `
             <div class="save-modal-card" role="dialog" aria-modal="true" aria-labelledby="saveModalTitle">
                 <h2 id="saveModalTitle">Parte guardado correctamente</h2>
-                <p>${data.message || "La información fue registrada en reportes."}</p>
                 <div class="save-meta"><span>Fecha y hora de guardado</span><strong>${data.guardado_texto || ""}</strong></div>
                 <div class="save-modal-actions">
                     <a class="btn outline" href="/historial">Ver reportes</a>
