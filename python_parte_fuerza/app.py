@@ -186,7 +186,7 @@ def record_security_event(ip, usuario, evento, detalle):
             INSERT INTO security_events (fecha, ip, usuario, evento, detalle)
             VALUES (?, ?, ?, ?, ?)
             """,
-            (datetime.now().isoformat(timespec="seconds"), ip[:80], (usuario or "")[:120], evento[:80], detalle[:500]),
+            (datetime.now(APP_TZ).isoformat(timespec="seconds"), ip[:80], (usuario or "")[:120], evento[:80], detalle[:500]),
         )
 
 
@@ -199,7 +199,7 @@ def record_login(user, ip, user_agent, device_name):
             VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                datetime.now().isoformat(timespec="seconds"),
+                datetime.now(APP_TZ).isoformat(timespec="seconds"),
                 (user.get("email") or "")[:120],
                 (user.get("rol") or "")[:50],
                 unidad[:160],
@@ -477,6 +477,7 @@ def init_db():
         ensure_column(conn, "usuarios", "password_plano", "TEXT")
         ensure_column(conn, "funcionarios", "cedula", "TEXT")
         ensure_column(conn, "funcionarios", "cargo", "TEXT")
+        ensure_column(conn, "partes", "creado_en", "TEXT")
         ensure_column(conn, "novedades", "solicitud_psi", "TEXT")
         ensure_column(conn, "login_logs", "equipo_nombre", "TEXT")
         conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_unidades_nombre ON unidades(nombre)")
@@ -794,6 +795,23 @@ def fecha_hora_actual():
     return now.date().isoformat(), now.strftime("%H:%M")
 
 
+def formato_fecha_hora(dt_value):
+    if not dt_value:
+        return "Sin fecha de guardado"
+    try:
+        value = str(dt_value).replace("Z", "+00:00")
+        parsed = datetime.fromisoformat(value)
+        if parsed.tzinfo:
+            parsed = parsed.astimezone(APP_TZ)
+    except Exception:
+        parts = str(dt_value).replace("T", " ").split(".")[0]
+        return parts[:16]
+
+    hour_12 = parsed.hour % 12 or 12
+    suffix = "a. m." if parsed.hour < 12 else "p. m."
+    return f"{parsed.day:02d}/{parsed.month:02d}/{parsed.year} {hour_12:02d}:{parsed.minute:02d} {suffix}"
+
+
 def aplicar_fecha_hora_actual(data):
     fecha, hora = fecha_hora_actual()
     data["fecha"] = fecha
@@ -804,6 +822,9 @@ def aplicar_fecha_hora_actual(data):
 def novedades_vigentes(fecha, hora, unidad_id):
     if not fecha or not hora or not unidad_id:
         return []
+    hoy, hora_actual = fecha_hora_actual()
+    if fecha == hoy:
+        hora = hora_actual
     target = f"{fecha}T{hora}"
     with db() as conn:
         rows = rows_dict(
@@ -1031,6 +1052,7 @@ def reporte_general_data(fecha):
             {
                 "fecha": parte["fecha"],
                 "hora": parte["hora_parte"],
+                "guardado": formato_fecha_hora(parte.get("creado_en")),
                 "unidad": parte["unidad"],
                 "comandante": parte["comandante"],
                 "efectiva": total_efectiva,
@@ -1382,14 +1404,15 @@ def render_report(pdf, reporte):
 
     pdf.y = top - banner_h - 16
 
-    meta_h = 58
+    meta_h = 72
     pdf.rect(x0, pdf.y, x1 - x0, meta_h, fill="0.933 0.973 0.949")
     pdf.rect(x0, pdf.y, x1 - x0, meta_h)
     inner = x0 + 12
     pdf.label_text(inner, pdf.y - 18, "Unidad:", parte["unidad"], 10)
     pdf.label_text(inner, pdf.y - 34, "Fecha:", f"{parte['fecha']}", 10)
     pdf.label_text(inner + 220, pdf.y - 34, "Hora:", parte["hora_parte"], 10)
-    pdf.label_text(inner, pdf.y - 50, "Comandante:", parte["comandante"], 10)
+    pdf.label_text(inner, pdf.y - 50, "Guardado el:", formato_fecha_hora(parte.get("creado_en")), 10)
+    pdf.label_text(inner, pdf.y - 66, "Comandante:", parte["comandante"], 10)
     pdf.y -= meta_h + 12
 
     pdf.heading("Fuerza disponible")
@@ -1462,15 +1485,15 @@ def pdf_reporte_general(data):
 
     pdf.heading("Partes reportados por unidades")
     unidades_rows = [
-        [item["fecha"], item["hora"], item["unidad"], item["comandante"], item["efectiva"], item["novedades"], item["disponible"]]
+        [item["fecha"], item["hora"], item["guardado"], item["unidad"], item["comandante"], item["efectiva"], item["novedades"], item["disponible"]]
         for item in data["unidades"]
-    ] or [["-", "-", "Sin partes guardados para esta fecha", "-", "-", "-", "-"]]
+    ] or [["-", "-", "-", "Sin partes guardados para esta fecha", "-", "-", "-", "-"]]
     pdf.table(
-        ["Fecha", "Hora", "Unidad", "Comandante", "Efectiva", "Novedades", "Disponible"],
+        ["Fecha", "Hora", "Guardado", "Unidad", "Comandante", "Efectiva", "Novedades", "Disponible"],
         unidades_rows,
-        [58, 45, 145, 135, 55, 60, 60],
+        [48, 38, 82, 115, 115, 45, 50, 47],
         hs=8,
-        cs=8,
+        cs=7,
     )
 
     pdf.heading("Fuerza disponible consolidada")
@@ -1847,7 +1870,7 @@ def usuarios_page(user=None, error=""):
 def novedades_page(user=None, query=""):
     user = user or {}
     params = parse_qs(query)
-    fecha = params.get("fecha", [""])[0] or datetime.now().date().isoformat()
+    fecha = params.get("fecha", [""])[0] or datetime.now(APP_TZ).date().isoformat()
     where = ["n.estado = 'activa'", "n.fecha_inicio <= ?", "n.fecha_fin >= ?"]
     values = [fecha, fecha]
     if user.get("rol") == "unidad":
@@ -1973,7 +1996,7 @@ def historial_page(user=None, query=""):
             """
         rows += f"""
         <tr>
-            <td>{h(parte['fecha'])}<br><small>{h(parte['hora_parte'])}</small></td><td>{h(parte['unidad'])}</td><td>{h(parte['comandante'])}</td><td>{efectiva}</td><td>{parte['novedades']}</td><td>{disponible}</td>
+            <td>{h(parte['fecha'])}<br><small>{h(parte['hora_parte'])}</small></td><td>{h(formato_fecha_hora(parte.get('creado_en')))}</td><td>{h(parte['unidad'])}</td><td>{h(parte['comandante'])}</td><td>{efectiva}</td><td>{parte['novedades']}</td><td>{disponible}</td>
             <td class="actions-inline">
                 <a class="btn small outline" href="/reporte?id={parte['id']}">Ver</a>
                 <a class="btn small primary" href="/pdf?id={parte['id']}">PDF</a>
@@ -1997,7 +2020,7 @@ def historial_page(user=None, query=""):
 <section class="panel">
     <div class="section-head"><h2>Reportes de partes</h2><div class="actions-inline">{general_report_link}<a class="btn primary" href="/parte">Nuevo Parte</a></div></div>
     {filters}
-    <table class="data-table"><thead><tr><th>Fecha y hora</th><th>Unidad</th><th>Comandante quien reporta</th><th>Fuerza efectiva</th><th>Novedades</th><th>Disponible</th><th>Acci&oacute;n</th></tr></thead><tbody>{rows or '<tr><td colspan="7">No hay partes guardados.</td></tr>'}</tbody></table>
+    <table class="data-table"><thead><tr><th>Fecha y hora del parte</th><th>Guardado el</th><th>Unidad</th><th>Comandante quien reporta</th><th>Fuerza efectiva</th><th>Novedades</th><th>Disponible</th><th>Acci&oacute;n</th></tr></thead><tbody>{rows or '<tr><td colspan="8">No hay partes guardados.</td></tr>'}</tbody></table>
 </section>
 """
     return layout(content, user)
@@ -2008,7 +2031,7 @@ def reporte_general_page(user=None, query=""):
     if user.get("rol") != "admin":
         return layout("<section class='panel'>No autorizado.</section>", user)
     params = parse_qs(query)
-    fecha = params.get("fecha", [""])[0] or datetime.now().strftime("%Y-%m-%d")
+    fecha = params.get("fecha", [""])[0] or datetime.now(APP_TZ).date().isoformat()
     data = reporte_general_data(fecha)
 
     total_efectiva = sum(data["efectiva"].values())
@@ -2021,6 +2044,7 @@ def reporte_general_page(user=None, query=""):
         <tr>
             <td>{h(item['fecha'])}</td>
             <td>{h(item['hora'])}</td>
+            <td>{h(item['guardado'])}</td>
             <td>{h(item['unidad'])}</td>
             <td>{h(item['comandante'])}</td>
             <td>{item['efectiva']}</td>
@@ -2028,7 +2052,7 @@ def reporte_general_page(user=None, query=""):
             <td>{item['disponible']}</td>
         </tr>"""
     if not unidades_rows:
-        unidades_rows = "<tr><td colspan='7'>No hay partes guardados para esta fecha.</td></tr>"
+        unidades_rows = "<tr><td colspan='8'>No hay partes guardados para esta fecha.</td></tr>"
 
     fuerza_rows = "".join(
         f"<tr><td>{label}</td><td>{data['efectiva'][key]}</td><td>{data['en_novedad'][key]}</td><td>{data['disponible'][key]}</td></tr>"
@@ -2071,7 +2095,7 @@ def reporte_general_page(user=None, query=""):
         <div class="summary-item success"><span>Fuerza disponible</span><strong>{total_disponible}</strong></div>
     </div>
     <h2>Partes reportados por unidades</h2>
-    <table class="data-table"><thead><tr><th>Fecha</th><th>Hora</th><th>Unidad</th><th>Comandante quien reporta</th><th>Efectiva</th><th>Novedades</th><th>Disponible</th></tr></thead><tbody>{unidades_rows}</tbody></table>
+    <table class="data-table"><thead><tr><th>Fecha</th><th>Hora</th><th>Guardado el</th><th>Unidad</th><th>Comandante quien reporta</th><th>Efectiva</th><th>Novedades</th><th>Disponible</th></tr></thead><tbody>{unidades_rows}</tbody></table>
     <h2>Fuerza disponible consolidada</h2>
     <table class="data-table"><thead><tr><th>Categor&iacute;a</th><th>Efectiva</th><th>En novedades</th><th>Disponible</th></tr></thead><tbody>{fuerza_rows}</tbody></table>
     <h2>Novedades del d&iacute;a</h2>
@@ -2109,6 +2133,7 @@ def reporte_page(parte_id, user=None):
     <div class="report-meta">
         <strong>Unidad:</strong> {h(parte['unidad'])}<br>
         <strong>Fecha:</strong> {h(parte['fecha'])} <strong>Hora:</strong> {h(parte['hora_parte'])}<br>
+        <strong>Guardado el:</strong> {h(formato_fecha_hora(parte.get('creado_en')))}<br>
         <strong>Comandante:</strong> {h(parte['comandante'])}
     </div>
     <h2>Fuerza disponible</h2>
@@ -2383,7 +2408,7 @@ class Handler(BaseHTTPRequestHandler):
             if user.get("rol") != "admin":
                 record_security_event(self.client_ip(), user.get("email", ""), "Acceso no autorizado", path)
                 return self.redirect("/parte")
-            fecha = parse_qs(parsed.query).get("fecha", [""])[0] or datetime.now().strftime("%Y-%m-%d")
+            fecha = parse_qs(parsed.query).get("fecha", [""])[0] or datetime.now(APP_TZ).date().isoformat()
             return self.send_pdf(pdf_reporte_general(reporte_general_data(fecha)), f"reporte_general_{fecha}.pdf")
         return self.send_html("No encontrado", 404)
 
@@ -2521,10 +2546,11 @@ class Handler(BaseHTTPRequestHandler):
 
         if parsed.path == "/api/partes":
             try:
-                data = aplicar_fuerza_efectiva_unidad(aplicar_fecha_hora_actual(json.loads(self.read_body())))
+                data = aplicar_fuerza_efectiva_unidad(json.loads(self.read_body()))
                 user = self.current_user()
                 novedades = data.get("novedades", [])
                 validar_novedades(data, novedades)
+                guardado_en = datetime.now(APP_TZ).isoformat(timespec="seconds")
                 with db() as conn:
                     cur = conn.execute(
                         """
@@ -2547,7 +2573,7 @@ class Handler(BaseHTTPRequestHandler):
                             data["fuerza_efectiva_patrulleros_policia"],
                             data["fuerza_efectiva_auxiliares"],
                             data.get("observaciones", ""),
-                            datetime.now().isoformat(timespec="seconds"),
+                            guardado_en,
                         ),
                     )
                     parte_id = cur.lastrowid
@@ -2579,7 +2605,14 @@ class Handler(BaseHTTPRequestHandler):
                                 novedad.get("solicitud_psi", ""),
                             ),
                         )
-                return self.send_json({"message": "Parte guardado correctamente.", "id": parte_id})
+                return self.send_json(
+                    {
+                        "message": "Parte guardado correctamente.",
+                        "id": parte_id,
+                        "guardado_en": guardado_en,
+                        "guardado_texto": formato_fecha_hora(guardado_en),
+                    }
+                )
             except Exception as exc:
                 return self.send_json({"error": str(exc)}, 422)
 

@@ -726,6 +726,28 @@ body.novedad-modal-open::before {
     line-height: 1.5;
 }
 
+.save-meta {
+    display: grid;
+    gap: 5px;
+    margin-bottom: 22px;
+    padding: 12px 14px;
+    border: 1px solid #b9d7c5;
+    border-radius: 8px;
+    background: #eef8f2;
+}
+
+.save-meta span {
+    color: var(--green-900);
+    font-size: 12px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.save-meta strong {
+    color: #07140d;
+    font-size: 18px;
+}
+
 .save-modal-actions {
     display: grid;
     grid-template-columns: 1fr 1fr;

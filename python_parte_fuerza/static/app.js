@@ -377,13 +377,14 @@
         };
     }
 
-    function mostrarParteGuardado(message) {
+    function mostrarParteGuardado(data) {
         const modal = document.createElement("div");
         modal.className = "save-modal";
         modal.innerHTML = `
             <div class="save-modal-card" role="dialog" aria-modal="true" aria-labelledby="saveModalTitle">
                 <h2 id="saveModalTitle">Parte guardado correctamente</h2>
-                <p>${message || "La información fue registrada en reportes."}</p>
+                <p>${data.message || "La información fue registrada en reportes."}</p>
+                <div class="save-meta"><span>Fecha y hora de guardado</span><strong>${data.guardado_texto || ""}</strong></div>
                 <div class="save-modal-actions">
                     <a class="btn outline" href="/historial">Ver reportes</a>
                     <a class="btn danger" href="/logout">Cerrar sesión</a>
@@ -400,6 +401,7 @@
             alert("Debe seleccionar la unidad que reporta el parte.");
             return;
         }
+        await cargarNovedadesVigentes();
         const response = await fetch("/api/partes", {
             method: "POST",
             headers: {"Content-Type": "application/json"},
@@ -410,7 +412,7 @@
             alert(data.error || "No fue posible guardar el parte.");
             return;
         }
-        mostrarParteGuardado(data.message);
+        mostrarParteGuardado(data);
     }
 
     document.querySelectorAll(".efectiva").forEach((input) => input.addEventListener("input", calcularFuerzaDisponible));
