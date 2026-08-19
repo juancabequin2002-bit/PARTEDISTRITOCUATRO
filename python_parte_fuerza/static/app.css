@@ -350,7 +350,13 @@ label {
     margin-top: 20px;
 }
 
-.psi-field {
+.left-stack {
+    display: grid;
+    gap: 18px;
+}
+
+.psi-field,
+.other-field {
     display: grid;
     grid-template-columns: 1fr 2fr;
     gap: 16px;
@@ -362,7 +368,8 @@ label {
     background: #fbfcfb;
 }
 .psi-field select { max-width: 220px; }
-.psi-field .alert { margin: 0; }
+.psi-field .alert,
+.other-field .alert { margin: 0; }
 
 .cargo-funcionario {
     grid-template-columns: 150px 1fr;
@@ -391,6 +398,10 @@ label {
     grid-template-columns: minmax(0, 2fr) minmax(280px, .95fr);
     align-items: start;
     margin-top: 20px;
+}
+
+.grid.summary-row {
+    grid-template-columns: minmax(0, 1fr);
 }
 
 .compact {
@@ -539,6 +550,31 @@ label {
 
 .subpanel.open {
     display: block;
+}
+
+body.novedad-modal-open {
+    overflow: hidden;
+}
+
+body.novedad-modal-open::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 900;
+    background: rgba(0, 20, 10, .62);
+}
+
+#novedadForm.open {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    z-index: 901;
+    width: min(920px, calc(100vw - 32px));
+    max-height: calc(100vh - 36px);
+    margin: 0;
+    overflow: auto;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 24px 70px rgba(0, 0, 0, .35);
 }
 
 .novedad-actions {
@@ -822,7 +858,8 @@ label {
         grid-template-columns: 1fr;
     }
 
-    .psi-field {
+    .psi-field,
+    .other-field {
         grid-template-columns: 1fr;
     }
 

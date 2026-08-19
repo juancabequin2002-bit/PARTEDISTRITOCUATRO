@@ -11,6 +11,14 @@
 
     const PSI_TIPOS = ["Permiso", "Franquicia"];
     const psiRequerido = (tipo) => PSI_TIPOS.includes(tipo);
+    const otraNovedadRequerida = (tipo) => tipo === "Otra novedad";
+    const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+    }[char]));
 
     const efectivaIds = {
         oficiales: "efectiva_oficiales",
@@ -34,6 +42,22 @@
         if (!value) return "";
         const [y, m, d] = value.split("-");
         return `${d}/${m}/${y}`;
+    }
+
+    function fechaHoraActual() {
+        const now = new Date();
+        const pad = (value) => String(value).padStart(2, "0");
+        return {
+            fecha: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`,
+            hora: `${pad(now.getHours())}:${pad(now.getMinutes())}`,
+        };
+    }
+
+    function actualizarFechaHoraParte() {
+        const actual = fechaHoraActual();
+        $("fecha").value = actual.fecha;
+        $("hora_parte").value = actual.hora;
+        return actual;
     }
 
     function efectivaPorCategoria() {
@@ -185,11 +209,13 @@
             fecha_fin: $("fecha_fin").value,
             hora_fin: $("hora_fin").value,
             dias_calculados: calcularDias(),
+            observaciones: otraNovedadRequerida($("tipo_novedad").value) ? $("otra_novedad_detalle").value.trim() : "",
             solicitud_psi: $("solicitud_psi").value,
         };
     }
 
     async function cargarNovedadesVigentes() {
+        actualizarFechaHoraParte();
         const unidadId = $("unidad_id").value;
         const fecha = $("fecha").value;
         const hora = $("hora_parte").value || "07:00";
@@ -229,6 +255,7 @@
         if (!$("unidad_novedad_id").value) return "Debe seleccionar la unidad de la novedad.";
         if (!novedad.tipo_novedad) return "Debe seleccionar el tipo de novedad.";
         if (psiRequerido(novedad.tipo_novedad) && !novedad.solicitud_psi) return "Debe indicar si la solicitud de permiso es por PSI (Sí o No).";
+        if (otraNovedadRequerida(novedad.tipo_novedad) && !novedad.observaciones) return "Debe escribir qué novedad tiene el funcionario.";
         if (!novedad.funcionario_id) return "Debe seleccionar el funcionario.";
         if (!novedad.fecha_inicio || !novedad.hora_inicio) return "Debe ingresar fecha y hora de inicio.";
         if (!novedad.fecha_fin || !novedad.hora_fin) return "Debe ingresar fecha y hora de finalización.";
@@ -268,9 +295,22 @@
         $("tipo_novedad").value = "";
         $("funcionario_id").value = "";
         $("solicitud_psi").value = "";
+        $("otra_novedad_detalle").value = "";
         $("psiField").style.display = "none";
+        $("otraNovedadField").style.display = "none";
         $("guardarNovedad").textContent = "Guardar Novedad";
         calcularDias();
+    }
+
+    function abrirFormularioNovedad() {
+        $("novedadForm").classList.add("open");
+        document.body.classList.add("novedad-modal-open");
+    }
+
+    function cerrarFormularioNovedad() {
+        $("novedadForm").classList.remove("open");
+        document.body.classList.remove("novedad-modal-open");
+        limpiarFormularioNovedad();
     }
 
     function renderNovedades() {
@@ -280,14 +320,15 @@
         state.novedades.forEach((novedad, index) => {
             const tr = document.createElement("tr");
             const etiqueta = novedad.automatica ? '<br><span class="mini-badge">Vigente</span>' : "";
-            const unidad = novedad.unidad_nombre ? `<br><small>${novedad.unidad_nombre}</small>` : "";
+            const detalle = otraNovedadRequerida(novedad.tipo_novedad) && novedad.observaciones ? `<br><small>${escapeHtml(novedad.observaciones)}</small>` : "";
+            const unidad = novedad.unidad_nombre ? `<br><small>${escapeHtml(novedad.unidad_nombre)}</small>` : "";
             tr.innerHTML = `
-                <td><strong>${novedad.tipo_novedad}</strong>${etiqueta}</td>
-                <td><strong>${novedad.grado}</strong><br>${novedad.funcionario}${unidad}</td>
-                <td>${formatDate(novedad.fecha_inicio)}<br>${novedad.hora_inicio}</td>
-                <td>${formatDate(novedad.fecha_fin)}<br>${novedad.hora_fin}</td>
+                <td><strong>${escapeHtml(novedad.tipo_novedad)}</strong>${detalle}${etiqueta}</td>
+                <td><strong>${escapeHtml(novedad.grado)}</strong><br>${escapeHtml(novedad.funcionario)}${unidad}</td>
+                <td>${escapeHtml(formatDate(novedad.fecha_inicio))}<br>${escapeHtml(novedad.hora_inicio)}</td>
+                <td>${escapeHtml(formatDate(novedad.fecha_fin))}<br>${escapeHtml(novedad.hora_fin)}</td>
                 <td>${Number(novedad.dias_calculados).toFixed(2)}</td>
-                <td>${novedad.solicitud_psi || "-"}</td>
+                <td>${escapeHtml(novedad.solicitud_psi || "-")}</td>
                 <td>
                     <div class="actions-inline">
                         <button type="button" class="edit-btn" data-edit="${index}">Editar</button>
@@ -312,11 +353,12 @@
         if (state.editIndex === null) state.novedades.push(novedad);
         else state.novedades[state.editIndex] = novedad;
 
-        limpiarFormularioNovedad();
+        cerrarFormularioNovedad();
         renderNovedades();
     }
 
     function payloadParte() {
+        actualizarFechaHoraParte();
         return {
             unidad_id: $("unidad_id").value,
             fecha: $("fecha").value,
@@ -371,14 +413,6 @@
 
     document.querySelectorAll(".efectiva").forEach((input) => input.addEventListener("input", calcularFuerzaDisponible));
     ["fecha_inicio", "hora_inicio", "fecha_fin", "hora_fin"].forEach((id) => $(id).addEventListener("input", calcularDias));
-    $("fecha").addEventListener("input", () => {
-        calcularFuerzaDisponible();
-        cargarNovedadesVigentes();
-    });
-    $("hora_parte").addEventListener("input", () => {
-        calcularFuerzaDisponible();
-        cargarNovedadesVigentes();
-    });
     $("unidad_id").addEventListener("change", () => {
         calcularFuerzaDisponible();
         cargarNovedadesVigentes();
@@ -388,11 +422,18 @@
         renderFuncionarios();
     });
     $("funcionario_id").addEventListener("change", renderCargoFuncionario);
-    $("toggleNovedad").addEventListener("click", () => $("novedadForm").classList.toggle("open"));
+    $("toggleNovedad").addEventListener("click", () => {
+        limpiarFormularioNovedad();
+        abrirFormularioNovedad();
+    });
     $("tipo_novedad").addEventListener("change", () => {
-        $("psiField").style.display = psiRequerido($("tipo_novedad").value) ? "block" : "none";
+        const tipo = $("tipo_novedad").value;
+        $("psiField").style.display = psiRequerido(tipo) ? "block" : "none";
+        $("otraNovedadField").style.display = otraNovedadRequerida(tipo) ? "block" : "none";
+        if (!otraNovedadRequerida(tipo)) $("otra_novedad_detalle").value = "";
     });
     $("guardarNovedad").addEventListener("click", guardarNovedad);
+    $("cancelarNovedad").addEventListener("click", cerrarFormularioNovedad);
     $("guardarParteBtn").addEventListener("click", guardarParte);
     $("parteForm").addEventListener("submit", (event) => event.preventDefault());
     $("parteForm").addEventListener("keydown", (event) => {
@@ -418,9 +459,11 @@
             $("fecha_fin").value = novedad.fecha_fin;
             $("hora_fin").value = novedad.hora_fin;
             $("solicitud_psi").value = novedad.solicitud_psi || "";
+            $("otra_novedad_detalle").value = novedad.observaciones || "";
             $("psiField").style.display = psiRequerido(novedad.tipo_novedad) ? "block" : "none";
+            $("otraNovedadField").style.display = otraNovedadRequerida(novedad.tipo_novedad) ? "block" : "none";
             $("guardarNovedad").textContent = "Actualizar Novedad";
-            $("novedadForm").classList.add("open");
+            abrirFormularioNovedad();
             calcularDias();
         }
 
@@ -430,6 +473,7 @@
         }
     });
 
+    actualizarFechaHoraParte();
     renderFuncionarios();
     calcularDias();
     renderNovedades();

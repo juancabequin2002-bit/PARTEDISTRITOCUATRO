@@ -563,6 +563,14 @@ def h(value):
     return html.escape(str(value or ""))
 
 
+def tipo_novedad_text(novedad):
+    tipo = novedad.get("tipo_novedad", "")
+    detalle = str(novedad.get("observaciones") or "").strip()
+    if tipo == "Otra novedad" and detalle:
+        return f"{tipo}: {detalle}"
+    return tipo
+
+
 def get_unit_name(unidad_id):
     if not unidad_id:
         return ""
@@ -754,6 +762,13 @@ def fecha_hora_actual():
     return now.date().isoformat(), now.strftime("%H:%M")
 
 
+def aplicar_fecha_hora_actual(data):
+    fecha, hora = fecha_hora_actual()
+    data["fecha"] = fecha
+    data["hora_parte"] = hora
+    return data
+
+
 def novedades_vigentes(fecha, hora, unidad_id):
     if not fecha or not hora or not unidad_id:
         return []
@@ -771,6 +786,7 @@ def novedades_vigentes(fecha, hora, unidad_id):
                     n.fecha_fin,
                     n.hora_fin,
                     n.dias_calculados,
+                    n.observaciones,
                     n.solicitud_psi,
                     f.grado,
                     f.nombres,
@@ -821,6 +837,7 @@ def novedades_vigentes(fecha, hora, unidad_id):
                 "fecha_fin": row["fecha_fin"],
                 "hora_fin": row["hora_fin"],
                 "dias_calculados": float(row["dias_calculados"] or 0),
+                "observaciones": row.get("observaciones") or "",
                 "solicitud_psi": row.get("solicitud_psi") or "",
             }
         )
@@ -848,6 +865,8 @@ def validar_novedades(data, novedades):
                 raise ValueError("Tipo de novedad no v&aacute;lido.")
             if novedad["tipo_novedad"] in ("Permiso", "Franquicia") and not novedad.get("solicitud_psi"):
                 raise ValueError("Debe indicar si la solicitud de permiso es por PSI (Sí o No).")
+            if novedad["tipo_novedad"] == "Otra novedad" and not str(novedad.get("observaciones") or "").strip():
+                raise ValueError("Debe escribir qu&eacute; novedad tiene el funcionario.")
             if novedad.get("solicitud_psi") and novedad["solicitud_psi"] not in ("Si", "No"):
                 raise ValueError("La solicitud por PSI debe ser Sí o No.")
 
@@ -1353,7 +1372,7 @@ def render_report(pdf, reporte):
     for novedad in reporte["novedades"]:
         funcionario = f"{novedad['grado']} {novedad['nombres']} {novedad['apellidos']}"
         nov_rows.append([
-            novedad["tipo_novedad"],
+            tipo_novedad_text(novedad),
             funcionario,
             novedad.get("cargo") or "Sin cargo registrado",
             f"{novedad['fecha_inicio']} {novedad['hora_inicio']}",
@@ -1437,7 +1456,7 @@ def pdf_reporte_general(data):
         nov_rows.append(
             [
                 novedad["unidad_reporta"],
-                novedad["tipo_novedad"],
+                tipo_novedad_text(novedad),
                 funcionario,
                 novedad.get("cargo") or "Sin cargo registrado",
                 novedad["unidad_funcionario"],
@@ -1546,40 +1565,47 @@ def parte_page(user=None):
 <form id="parteForm" class="parte-form">
     <section class="panel general-panel">
         <h2>Informaci&oacute;n general</h2>
-        <div class="grid four">
+        <div class="grid two">
             <label>Unidad<select id="unidad_id">{unidad_options}</select></label>
             <label>Comandante que reporta<input id="comandante" placeholder="Ejemplo: Cap. YESICA LICETH GOMEZ TRUJILLO"></label>
-            <label>Fecha del parte<input type="date" id="fecha" value="{fecha_default}"></label>
-            <label>Hora del parte<input type="time" id="hora_parte" value="{hora_default}"></label>
+            <input type="hidden" id="fecha" value="{fecha_default}">
+            <input type="hidden" id="hora_parte" value="{hora_default}">
         </div>
     </section>
 
     <div class="grid main-grid">
-        <section class="panel">
-            <h2>1. Fuerza efectiva <small>(total unidad)</small></h2>
-            <table class="data-table">
-                <thead><tr><th>Categor&iacute;a</th><th>Cantidad</th></tr></thead>
-                <tbody>
-                    <tr><td>Oficiales</td><td><input class="qty efectiva" id="efectiva_oficiales" type="number" min="0" value="0"></td></tr>
-                    <tr><td>Nivel Ejecutivo</td><td><input class="qty efectiva" id="efectiva_nivel_ejecutivo" type="number" min="0" value="0"></td></tr>
-                    <tr><td>Patrulleros</td><td><input class="qty efectiva" id="efectiva_patrulleros" type="number" min="0" value="0"></td></tr>
-                    <tr><td>Patrulleros de Polic&iacute;a</td><td><input class="qty efectiva" id="efectiva_patrulleros_policia" type="number" min="0" value="0"></td></tr>
-                    <tr><td>Auxiliares de Polic&iacute;a</td><td><input class="qty efectiva" id="efectiva_auxiliares" type="number" min="0" value="0"></td></tr>
-                </tbody>
-                <tfoot><tr><th>Total fuerza efectiva</th><th id="total_efectiva">0</th></tr></tfoot>
-            </table>
-        </section>
+        <div class="left-stack">
+            <section class="panel">
+                <h2>1. Fuerza efectiva <small>(total unidad)</small></h2>
+                <table class="data-table">
+                    <thead><tr><th>Categor&iacute;a</th><th>Cantidad</th></tr></thead>
+                    <tbody>
+                        <tr><td>Oficiales</td><td><input class="qty efectiva" id="efectiva_oficiales" type="number" min="0" value="0"></td></tr>
+                        <tr><td>Nivel Ejecutivo</td><td><input class="qty efectiva" id="efectiva_nivel_ejecutivo" type="number" min="0" value="0"></td></tr>
+                        <tr><td>Patrulleros</td><td><input class="qty efectiva" id="efectiva_patrulleros" type="number" min="0" value="0"></td></tr>
+                        <tr><td>Patrulleros de Polic&iacute;a</td><td><input class="qty efectiva" id="efectiva_patrulleros_policia" type="number" min="0" value="0"></td></tr>
+                        <tr><td>Auxiliares de Polic&iacute;a</td><td><input class="qty efectiva" id="efectiva_auxiliares" type="number" min="0" value="0"></td></tr>
+                    </tbody>
+                    <tfoot><tr><th>Total fuerza efectiva</th><th id="total_efectiva">0</th></tr></tfoot>
+                </table>
+            </section>
+
+            <section class="panel">
+                <h2>3. Fuerza disponible <small>(despu&eacute;s de novedades)</small></h2>
+                <table class="data-table">
+                    <thead><tr><th>Categor&iacute;a</th><th>Efectiva</th><th>En novedades</th><th>Disponible</th></tr></thead>
+                    <tbody>
+                        {"".join(f"<tr><td>{label}</td><td id='ef_{key}'>0</td><td id='nov_{key}'>0</td><td id='disp_{key}'>0</td></tr>" for key, label in CATEGORIAS.items())}
+                    </tbody>
+                    <tfoot><tr><th>Total</th><th id="total_efectiva_2">0</th><th id="total_novedades">0</th><th id="total_disponible">0</th></tr></tfoot>
+                </table>
+            </section>
+        </div>
 
         <div class="flow-arrow no-mobile"><span>OK</span><small>C&aacute;lculo<br>Autom&aacute;tico</small></div>
 
         <section class="panel" id="novedades">
             <div class="section-head"><h2>2. Novedades del personal</h2><button type="button" class="btn primary" id="toggleNovedad">+ Registrar Novedad</button></div>
-            <table class="data-table">
-                <thead><tr><th>Tipo</th><th>Funcionario</th><th>Inicio</th><th>Fin</th><th>D&iacute;as</th><th>PSI</th><th>Acci&oacute;n</th></tr></thead>
-                <tbody id="novedadesBody"></tbody>
-                <tfoot><tr><th colspan="4">Total funcionarios en novedades:</th><th id="totalNovedadesTabla">0</th><th></th><th></th></tr></tfoot>
-            </table>
-
             <div class="subpanel" id="novedadForm">
                 <h3>Registrar novedad</h3>
                 <div class="grid three">
@@ -1601,6 +1627,12 @@ def parte_page(user=None):
                     </label>
                     <div class="alert info compact-alert">Este campo es obligatorio cuando el tipo de novedad es Permiso o Franquicia.</div>
                 </div>
+                <div class="other-field" id="otraNovedadField" style="display:none;">
+                    <label>Qu&eacute; novedad tiene
+                        <input type="text" id="otra_novedad_detalle" maxlength="255" placeholder="Escriba la novedad del funcionario">
+                    </label>
+                    <div class="alert info compact-alert">Este campo es obligatorio cuando el tipo es Otra novedad.</div>
+                </div>
                 <div class="grid four compact">
                     <label>Fecha inicio<input type="date" id="fecha_inicio" value="{fecha_default}"></label>
                     <label>Hora inicio<input type="time" id="hora_inicio" value="06:00"></label>
@@ -1609,24 +1641,22 @@ def parte_page(user=None):
                 </div>
                 <div class="novedad-actions">
                     <div class="duration-box">D&iacute;as calculados: <strong id="diasTexto">0 d&iacute;as</strong></div>
-                    <button type="button" class="btn primary" id="guardarNovedad">Guardar Novedad</button>
+                    <div class="actions-inline">
+                        <button type="button" class="btn outline" id="cancelarNovedad">Cancelar</button>
+                        <button type="button" class="btn primary" id="guardarNovedad">Guardar Novedad</button>
+                    </div>
                 </div>
                 <div class="alert info">El c&aacute;lculo de d&iacute;as se realiza autom&aacute;ticamente.</div>
             </div>
+            <table class="data-table">
+                <thead><tr><th>Tipo</th><th>Funcionario</th><th>Inicio</th><th>Fin</th><th>D&iacute;as</th><th>PSI</th><th>Acci&oacute;n</th></tr></thead>
+                <tbody id="novedadesBody"></tbody>
+                <tfoot><tr><th colspan="4">Total funcionarios en novedades:</th><th id="totalNovedadesTabla">0</th><th></th><th></th></tr></tfoot>
+            </table>
         </section>
     </div>
 
-    <div class="grid lower-grid">
-        <section class="panel">
-            <h2>3. Fuerza disponible <small>(despu&eacute;s de novedades)</small></h2>
-            <table class="data-table">
-                <thead><tr><th>Categor&iacute;a</th><th>Efectiva</th><th>En novedades</th><th>Disponible</th></tr></thead>
-                <tbody>
-                    {"".join(f"<tr><td>{label}</td><td id='ef_{key}'>0</td><td id='nov_{key}'>0</td><td id='disp_{key}'>0</td></tr>" for key, label in CATEGORIAS.items())}
-                </tbody>
-                <tfoot><tr><th>Total</th><th id="total_efectiva_2">0</th><th id="total_novedades">0</th><th id="total_disponible">0</th></tr></tfoot>
-            </table>
-        </section>
+    <div class="grid lower-grid summary-row">
         <aside class="panel summary-card">
             <h2>Resumen del parte</h2>
             <div class="metric"><span>Fuerza Efectiva Total:</span><strong id="res_efectiva">0</strong></div>
@@ -1795,6 +1825,7 @@ def novedades_page(user=None, query=""):
                     p.comandante,
                     up.nombre unidad_parte,
                     n.tipo_novedad,
+                    n.observaciones,
                     n.fecha_inicio,
                     n.hora_inicio,
                     n.fecha_fin,
@@ -1826,7 +1857,7 @@ def novedades_page(user=None, query=""):
         <tr>
             <td>{h(novedad['unidad_parte'])}</td>
             <td>{h(novedad['comandante'])}</td>
-            <td>{h(novedad['tipo_novedad'])}</td>
+            <td>{h(novedad['tipo_novedad'])}{('<br><small>' + h(novedad.get('observaciones')) + '</small>') if novedad['tipo_novedad'] == 'Otra novedad' and novedad.get('observaciones') else ''}</td>
             <td>{h(funcionario)}</td>
             <td>{h(novedad.get('cargo') or 'Sin cargo registrado')}</td>
             <td>{h(novedad['unidad_funcionario'])}</td>
@@ -1902,7 +1933,7 @@ def historial_page(user=None, query=""):
             """
         rows += f"""
         <tr>
-            <td>{h(parte['fecha'])}</td><td>{h(parte['unidad'])}</td><td>{h(parte['comandante'])}</td><td>{efectiva}</td><td>{parte['novedades']}</td><td>{disponible}</td>
+            <td>{h(parte['fecha'])}<br><small>{h(parte['hora_parte'])}</small></td><td>{h(parte['unidad'])}</td><td>{h(parte['comandante'])}</td><td>{efectiva}</td><td>{parte['novedades']}</td><td>{disponible}</td>
             <td class="actions-inline">
                 <a class="btn small outline" href="/reporte?id={parte['id']}">Ver</a>
                 <a class="btn small primary" href="/pdf?id={parte['id']}">PDF</a>
@@ -1926,7 +1957,7 @@ def historial_page(user=None, query=""):
 <section class="panel">
     <div class="section-head"><h2>Reportes de partes</h2><div class="actions-inline">{general_report_link}<a class="btn primary" href="/parte">Nuevo Parte</a></div></div>
     {filters}
-    <table class="data-table"><thead><tr><th>Fecha</th><th>Unidad</th><th>Comandante quien reporta</th><th>Fuerza efectiva</th><th>Novedades</th><th>Disponible</th><th>Acci&oacute;n</th></tr></thead><tbody>{rows or '<tr><td colspan="7">No hay partes guardados.</td></tr>'}</tbody></table>
+    <table class="data-table"><thead><tr><th>Fecha y hora</th><th>Unidad</th><th>Comandante quien reporta</th><th>Fuerza efectiva</th><th>Novedades</th><th>Disponible</th><th>Acci&oacute;n</th></tr></thead><tbody>{rows or '<tr><td colspan="7">No hay partes guardados.</td></tr>'}</tbody></table>
 </section>
 """
     return layout(content, user)
@@ -1972,7 +2003,7 @@ def reporte_general_page(user=None, query=""):
         <tr>
             <td>{h(novedad['unidad_reporta'])}</td>
             <td>{h(novedad['comandante'])}</td>
-            <td>{h(novedad['tipo_novedad'])}</td>
+            <td>{h(novedad['tipo_novedad'])}{('<br><small>' + h(novedad.get('observaciones')) + '</small>') if novedad['tipo_novedad'] == 'Otra novedad' and novedad.get('observaciones') else ''}</td>
             <td>{h(funcionario)}</td>
             <td>{h(novedad.get('cargo') or 'Sin cargo registrado')}</td>
             <td>{h(novedad['unidad_funcionario'])}</td>
@@ -2027,7 +2058,8 @@ def reporte_page(parte_id, user=None):
     for novedad in reporte["novedades"]:
         funcionario = f"{novedad['grado']} {novedad['nombres']} {novedad['apellidos']}"
         cargo = novedad.get("cargo") or "Sin cargo registrado"
-        nov_rows += f"<tr><td>{h(novedad['tipo_novedad'])}</td><td>{h(funcionario)}</td><td>{h(cargo)}</td><td>{h(novedad['fecha_inicio'])} {h(novedad['hora_inicio'])}</td><td>{h(novedad['fecha_fin'])} {h(novedad['hora_fin'])}</td><td>{h(novedad['dias_calculados'])}</td><td>{h(novedad.get('solicitud_psi') or '-')}</td></tr>"
+        tipo = f"{h(novedad['tipo_novedad'])}{('<br><small>' + h(novedad.get('observaciones')) + '</small>') if novedad['tipo_novedad'] == 'Otra novedad' and novedad.get('observaciones') else ''}"
+        nov_rows += f"<tr><td>{tipo}</td><td>{h(funcionario)}</td><td>{h(cargo)}</td><td>{h(novedad['fecha_inicio'])} {h(novedad['hora_inicio'])}</td><td>{h(novedad['fecha_fin'])} {h(novedad['hora_fin'])}</td><td>{h(novedad['dias_calculados'])}</td><td>{h(novedad.get('solicitud_psi') or '-')}</td></tr>"
     if not nov_rows:
         nov_rows = "<tr><td colspan='7'>Sin novedades registradas.</td></tr>"
 
@@ -2449,7 +2481,7 @@ class Handler(BaseHTTPRequestHandler):
 
         if parsed.path == "/api/partes":
             try:
-                data = json.loads(self.read_body())
+                data = aplicar_fecha_hora_actual(json.loads(self.read_body()))
                 user = self.current_user()
                 novedades = data.get("novedades", [])
                 validar_novedades(data, novedades)
