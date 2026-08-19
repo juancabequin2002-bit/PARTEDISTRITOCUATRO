@@ -1865,7 +1865,6 @@ def parte_page(user=None):
 
     <section class="panel summary-card dashboard-summary">
         <div class="modern-section-title">
-            <span>Panel de control</span>
             <h2>Resumen del parte</h2>
         </div>
         <div class="summary-metrics">
