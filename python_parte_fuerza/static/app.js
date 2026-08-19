@@ -415,11 +415,16 @@
         modal.className = "save-modal";
         modal.innerHTML = `
             <div class="save-modal-card" role="dialog" aria-modal="true" aria-labelledby="saveModalTitle">
+                <div class="save-confirm-icon" aria-hidden="true">✓</div>
                 <h2 id="saveModalTitle">Parte guardado correctamente</h2>
-                <div class="save-meta"><span>Fecha y hora de guardado</span><strong>${data.guardado_texto || ""}</strong></div>
+                <p>La información del parte diario fue registrada exitosamente.</p>
+                <div class="save-meta">
+                    <span><i aria-hidden="true">□</i> Fecha y hora de guardado</span>
+                    <strong>${data.guardado_texto || ""}</strong>
+                </div>
                 <div class="save-modal-actions">
-                    <a class="btn outline" href="/historial">Ver reportes</a>
-                    <a class="btn danger" href="/logout">Cerrar sesión</a>
+                    <a class="btn save-primary" href="/historial"><span aria-hidden="true">▤</span> Ver reportes</a>
+                    <a class="btn save-secondary" href="/logout"><span aria-hidden="true">↪</span> Cerrar sesión</a>
                 </div>
             </div>
         `;
