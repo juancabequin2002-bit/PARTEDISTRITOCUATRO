@@ -1596,6 +1596,9 @@ def nav_icon(name):
         "funcionarios": '<path d="M17 18a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2"/><rect width="18" height="18" x="3" y="4" rx="2"/><circle cx="12" cy="10" r="2"/>',
         "general": '<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/><path d="M14 9h5v5"/>',
         "reportes": '<path d="M8 2h8l4 4v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h2z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/>',
+        "unit_parte": '<rect width="16" height="18" x="4" y="3" rx="2"/><path d="M9 3h6v4H9z"/><path d="M8 12h8"/><path d="M8 16h5"/>',
+        "unit_funcionarios": '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+        "unit_reportes": '<path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7l-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z"/><path d="M2 10h20"/>',
         "usuarios": '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
         "ingresos": '<path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="m10 17 5-5-5-5"/><path d="M15 12H3"/>',
         "seguridad": '<path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3z"/><path d="m9 12 2 2 4-4"/>',
@@ -1607,6 +1610,7 @@ def nav_icon(name):
 def layout(content, user=None):
     user = user or {}
     unit_name = get_unit_name(user.get("unidad_id")) if user.get("rol") == "unidad" else "ADMINISTRADOR GENERAL"
+    role_class = "sidebar-admin" if user.get("rol") == "admin" else "sidebar-unit"
     report_label = "Reportes de Unidades" if user.get("rol") == "admin" else "Reportes Guardados"
 
     def nav_link(path, label, icon, extra_class=""):
@@ -1614,7 +1618,10 @@ def layout(content, user=None):
 
     novedades_link = nav_link("/novedades", "Novedades", "novedades") if user.get("rol") == "admin" else ""
     general_link = nav_link("/reporte-general", "Reporte General", "general") if user.get("rol") == "admin" else ""
-    report_link = nav_link("/historial", report_label, "reportes")
+    parte_icon = "parte" if user.get("rol") == "admin" else "unit_parte"
+    funcionarios_icon = "funcionarios" if user.get("rol") == "admin" else "unit_funcionarios"
+    reportes_icon = "reportes" if user.get("rol") == "admin" else "unit_reportes"
+    report_link = nav_link("/historial", report_label, reportes_icon)
     users_link = nav_link("/usuarios", "Usuarios", "usuarios") if user.get("rol") == "admin" else ""
     ingresos_link = nav_link("/ingresos", "Ingresos", "ingresos") if user.get("rol") == "admin" else ""
     security_link = nav_link("/seguridad", "Seguridad", "seguridad") if user.get("rol") == "admin" else ""
@@ -1640,7 +1647,7 @@ def layout(content, user=None):
 <input class="sidebar-toggle no-print" type="checkbox" id="sidebarToggle" aria-label="Abrir men&uacute;">
 <label class="sidebar-hamburger no-print" for="sidebarToggle" aria-label="Abrir men&uacute;"><span></span><span></span><span></span></label>
 <div class="app-shell">
-    <aside class="sidebar no-print">
+    <aside class="sidebar {role_class} no-print">
         <div class="sidebar-head">
             <span class="sidebar-kicker">Sistema Administrativo</span>
             <strong>Parte de Fuerza</strong>
@@ -1649,9 +1656,9 @@ def layout(content, user=None):
         <nav class="sidebar-nav" aria-label="Men&uacute; principal">
             <div class="nav-group">
                 <div class="nav-section">Operativo</div>
-                {nav_link("/parte", "Parte de Fuerza", "parte")}
+                {nav_link("/parte", "Parte de Fuerza", parte_icon)}
                 {novedades_link}
-                {nav_link("/funcionarios", "Funcionarios", "funcionarios")}
+                {nav_link("/funcionarios", "Funcionarios", funcionarios_icon)}
             </div>
             <div class="nav-group">
                 <div class="nav-section">Reportes</div>

@@ -386,6 +386,101 @@ label {
     border-top: 1px solid rgba(255, 255, 255, .10);
 }
 
+.sidebar-unit {
+    background:
+        radial-gradient(circle at 18% 0%, rgba(38, 201, 111, .24), transparent 32%),
+        linear-gradient(180deg, #042f24 0%, #021e18 55%, #01120e 100%);
+}
+
+.sidebar-unit .sidebar-head {
+    border-radius: 20px;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, .10), rgba(255, 255, 255, .05));
+}
+
+.sidebar-unit .nav-link {
+    background: rgba(255, 255, 255, .055);
+    border-color: rgba(255, 255, 255, .10);
+    color: #f3fff8;
+    min-height: 52px;
+    padding-right: 36px;
+}
+
+.sidebar-unit .nav-link::after {
+    content: "›";
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: rgba(235, 255, 244, .68);
+    font-size: 25px;
+    font-weight: 900;
+    line-height: 1;
+    transition: transform .22s ease, color .22s ease;
+}
+
+.sidebar-unit .nav-link:hover {
+    background: rgba(255, 255, 255, .11);
+    border-color: rgba(185, 255, 212, .18);
+}
+
+.sidebar-unit .nav-link:hover::after {
+    color: #fff;
+    transform: translateY(-50%) translateX(2px);
+}
+
+.sidebar-unit .nav-link.active {
+    background: linear-gradient(135deg, #06a55b, #06713f);
+    border-color: rgba(191, 255, 218, .40);
+    box-shadow: 0 16px 36px rgba(0, 118, 61, .24);
+}
+
+.sidebar-unit .nav-link.active::before {
+    background: #8fffc0;
+    box-shadow: 0 0 16px rgba(143, 255, 192, .9);
+}
+
+.sidebar-unit .nav-link.active::after {
+    color: #fff;
+}
+
+.sidebar-unit .nav-ico {
+    background: rgba(255, 255, 255, .12);
+}
+
+.sidebar-unit .nav-link.active .nav-ico {
+    background: rgba(255, 255, 255, .20);
+}
+
+.sidebar-unit .logout-link {
+    background: rgba(24, 9, 11, .38);
+    border-color: rgba(196, 35, 48, .30);
+    color: #ffdce1;
+}
+
+.sidebar-unit .logout-link::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 12px;
+    bottom: 12px;
+    width: 4px;
+    border-radius: 0 999px 999px 0;
+    background: #d63648;
+    box-shadow: 0 0 13px rgba(214, 54, 72, .78);
+}
+
+.sidebar-unit .logout-link .nav-ico {
+    color: #ff8b99;
+    background: rgba(198, 34, 49, .14);
+}
+
+.sidebar-unit .logout-link:hover,
+.sidebar-unit .logout-link.active {
+    background: linear-gradient(135deg, rgba(139, 15, 28, .72), rgba(98, 8, 18, .86));
+    color: #fff;
+}
+
 .sidebar-toggle {
     position: fixed;
     width: 1px;
