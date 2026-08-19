@@ -81,7 +81,7 @@ label {
 }
 
 .topbar {
-    height: 124px;
+    min-height: 124px;
     padding: 18px 26px;
     display: grid;
     grid-template-columns: 330px 1fr;
@@ -90,9 +90,7 @@ label {
     position: relative;
     overflow: hidden;
     color: #fff;
-    background:
-        radial-gradient(circle at 24% -20%, rgba(35, 150, 79, .9), transparent 33%),
-        linear-gradient(135deg, var(--green-950), var(--green-800));
+    background: var(--green-950);
     box-shadow: 0 10px 28px rgba(0, 53, 27, .22);
 }
 
@@ -102,6 +100,8 @@ label {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    object-position: center;
+    filter: saturate(1.15) contrast(1.08) brightness(.72);
     z-index: 0;
 }
 
@@ -110,7 +110,9 @@ label {
     position: absolute;
     inset: 0;
     z-index: 1;
-    background: linear-gradient(90deg, rgba(0, 53, 27, .9), rgba(0, 74, 37, .55));
+    background:
+        linear-gradient(90deg, rgba(0, 40, 20, .88), rgba(0, 69, 36, .64) 46%, rgba(0, 53, 27, .72)),
+        linear-gradient(0deg, rgba(0, 36, 18, .28), rgba(17, 126, 61, .18));
 }
 
 .topbar > .brand,
