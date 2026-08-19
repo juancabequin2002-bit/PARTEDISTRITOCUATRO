@@ -1835,22 +1835,35 @@ def parte_page(user=None):
         </section>
     </div>
 
-    <div class="grid lower-grid summary-row">
-        <aside class="panel summary-card">
+    <section class="panel summary-card dashboard-summary">
+        <div class="modern-section-title">
+            <span>Panel de control</span>
             <h2>Resumen del parte</h2>
-            <div class="metric"><span>Fuerza Efectiva Total:</span><strong id="res_efectiva">0</strong></div>
-            <div class="metric"><span>Total en Novedades:</span><strong id="res_novedades">0</strong></div>
-            <div class="metric green"><span>Fuerza Disponible:</span><strong id="res_disponible">0</strong></div>
-            <div class="metric"><span>Porcentaje Disponible:</span><strong id="porcentaje_disponible">0%</strong></div>
-        </aside>
-    </div>
+        </div>
+        <div class="summary-metrics">
+            <div class="metric metric-total"><div class="metric-icon">+</div><span>Fuerza Efectiva Total</span><strong id="res_efectiva">0</strong></div>
+            <div class="metric metric-news"><div class="metric-icon">!</div><span>Total en Novedades</span><strong id="res_novedades">0</strong></div>
+            <div class="metric metric-ready"><div class="metric-icon">✓</div><span>Fuerza Disponible</span><strong id="res_disponible">0</strong></div>
+            <div class="metric metric-percent"><div class="metric-icon">%</div><span>Porcentaje Disponible</span><strong id="porcentaje_disponible">0%</strong><div class="metric-progress"><i></i></div></div>
+        </div>
+    </section>
 
-    <div class="grid lower-grid">
-        <section class="panel"><h2>Observaciones del comandante</h2><textarea id="observaciones" rows="5"></textarea></section>
-        <section class="panel actions-panel no-print">
-            <h2>Acciones</h2>
-            <button class="btn primary full" id="guardarParteBtn" type="button">Guardar Parte de Fuerza</button>
-            <button class="btn outline full" type="button" onclick="window.print()">Imprimir Parte</button>
+    <div class="grid lower-grid command-panel-row">
+        <section class="panel observation-panel">
+            <div class="modern-section-title compact">
+                <span>Registro adicional</span>
+                <h2>Observaciones del comandante</h2>
+                <p>Espacio para registrar observaciones, recomendaciones o anotaciones del comandante.</p>
+            </div>
+            <textarea id="observaciones" rows="6" placeholder="Ingrese las observaciones relevantes del parte..."></textarea>
+        </section>
+        <section class="panel actions-panel modern-actions no-print">
+            <div class="modern-section-title compact">
+                <span>Acciones rápidas</span>
+                <h2>Acciones</h2>
+            </div>
+            <button class="btn primary full action-save" id="guardarParteBtn" type="button"><span>□</span> Guardar Parte de Fuerza</button>
+            <button class="btn outline full action-print" type="button" onclick="window.print()"><span>▤</span> Imprimir Parte</button>
             {report_button}
         </section>
     </div>
