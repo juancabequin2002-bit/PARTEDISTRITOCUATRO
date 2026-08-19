@@ -359,6 +359,39 @@
         renderNovedades();
     }
 
+    async function eliminarNovedad(index) {
+        const novedad = state.novedades[index];
+        if (!novedad) return;
+
+        if (novedad.automatica && novedad.origen_novedad_id) {
+            const response = await fetch("/api/eliminar-novedad", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({id: novedad.origen_novedad_id}),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                alert(data.error || "No fue posible eliminar la novedad.");
+                return;
+            }
+            state.novedades = state.novedades.filter((item) => {
+                return !(
+                    Number(item.funcionario_id) === Number(novedad.funcionario_id) &&
+                    item.tipo_novedad === novedad.tipo_novedad &&
+                    item.fecha_inicio === novedad.fecha_inicio &&
+                    item.hora_inicio === novedad.hora_inicio &&
+                    item.fecha_fin === novedad.fecha_fin &&
+                    item.hora_fin === novedad.hora_fin
+                );
+            });
+            await cargarNovedadesVigentes();
+            return;
+        }
+
+        state.novedades.splice(index, 1);
+        renderNovedades();
+    }
+
     function payloadParte() {
         actualizarFechaHoraParte();
         return {
@@ -446,7 +479,7 @@
         }
     });
 
-    $("novedadesBody").addEventListener("click", (event) => {
+    $("novedadesBody").addEventListener("click", async (event) => {
         const edit = event.target.dataset.edit;
         const del = event.target.dataset.delete;
 
@@ -472,8 +505,7 @@
         }
 
         if (del !== undefined && confirm("¿Eliminar esta novedad?")) {
-            state.novedades.splice(Number(del), 1);
-            renderNovedades();
+            await eliminarNovedad(Number(del));
         }
     });
 

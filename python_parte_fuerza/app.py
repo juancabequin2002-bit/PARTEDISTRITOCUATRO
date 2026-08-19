@@ -897,6 +897,62 @@ def novedades_vigentes(fecha, hora, unidad_id):
     return vigentes
 
 
+def eliminar_novedad_guardada(novedad_id, user):
+    with db() as conn:
+        novedad = row_dict(
+            conn.execute(
+                """
+                SELECT
+                    n.id,
+                    n.funcionario_id,
+                    n.tipo_novedad,
+                    n.fecha_inicio,
+                    n.hora_inicio,
+                    n.fecha_fin,
+                    n.hora_fin,
+                    p.unidad_id unidad_reporta_id,
+                    f.unidad_id unidad_funcionario_id
+                FROM novedades n
+                JOIN partes p ON p.id = n.parte_id
+                JOIN funcionarios f ON f.id = n.funcionario_id
+                WHERE n.id = ?
+                """,
+                (novedad_id,),
+            ).fetchone()
+        )
+        if not novedad:
+            return 0
+
+        user_unidad_id = str(user.get("unidad_id") or "")
+        if user.get("rol") != "admin" and user_unidad_id not in {
+            str(novedad["unidad_reporta_id"]),
+            str(novedad["unidad_funcionario_id"]),
+        }:
+            raise PermissionError("No autorizado para eliminar esta novedad.")
+
+        cursor = conn.execute(
+            """
+            DELETE FROM novedades
+            WHERE estado = 'activa'
+              AND funcionario_id = ?
+              AND tipo_novedad = ?
+              AND fecha_inicio = ?
+              AND hora_inicio = ?
+              AND fecha_fin = ?
+              AND hora_fin = ?
+            """,
+            (
+                novedad["funcionario_id"],
+                novedad["tipo_novedad"],
+                novedad["fecha_inicio"],
+                novedad["hora_inicio"],
+                novedad["fecha_fin"],
+                novedad["hora_fin"],
+            ),
+        )
+        return getattr(getattr(cursor, "cursor", cursor), "rowcount", 0) or 0
+
+
 def validar_novedades(data, novedades):
     if not data.get("unidad_id"):
         raise ValueError("Debe seleccionar la unidad que reporta el parte.")
@@ -2484,6 +2540,21 @@ class Handler(BaseHTTPRequestHandler):
                 conn.execute("DELETE FROM novedades WHERE parte_id = ?", (parte_id,))
                 conn.execute("DELETE FROM partes WHERE id = ?", (parte_id,))
             return self.redirect("/historial")
+
+        if parsed.path == "/api/eliminar-novedad":
+            user = self.current_user()
+            try:
+                data = json.loads(self.read_body())
+                novedad_id = int(data.get("id") or 0)
+                if not novedad_id:
+                    return self.send_json({"error": "Novedad no valida."}, 422)
+                eliminadas = eliminar_novedad_guardada(novedad_id, user)
+                return self.send_json({"message": "Novedad eliminada correctamente.", "eliminadas": eliminadas})
+            except PermissionError as exc:
+                record_security_event(self.client_ip(), user.get("email", ""), "Eliminar novedad no autorizado", str(exc))
+                return self.send_json({"error": str(exc)}, 403)
+            except Exception as exc:
+                return self.send_json({"error": str(exc)}, 422)
 
         if parsed.path == "/funcionarios":
             form = parse_qs(self.read_body())
