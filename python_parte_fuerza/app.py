@@ -1589,16 +1589,43 @@ def pdf_reporte_general(data):
     return pdf.build()
 
 
+def nav_icon(name):
+    icons = {
+        "parte": '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+        "novedades": '<path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/>',
+        "funcionarios": '<path d="M17 18a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2"/><rect width="18" height="18" x="3" y="4" rx="2"/><circle cx="12" cy="10" r="2"/>',
+        "general": '<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/><path d="M14 9h5v5"/>',
+        "reportes": '<path d="M8 2h8l4 4v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h2z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/>',
+        "usuarios": '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+        "ingresos": '<path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="m10 17 5-5-5-5"/><path d="M15 12H3"/>',
+        "seguridad": '<path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3z"/><path d="m9 12 2 2 4-4"/>',
+        "salir": '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
+    }
+    return f'<svg class="nav-svg" viewBox="0 0 24 24" aria-hidden="true">{icons[name]}</svg>'
+
+
 def layout(content, user=None):
     user = user or {}
     unit_name = get_unit_name(user.get("unidad_id")) if user.get("rol") == "unidad" else "ADMINISTRADOR GENERAL"
-    novedades_link = '<a class="nav-link" href="/novedades"><span class="nav-ico">NV</span><span>Novedades</span></a>' if user.get("rol") == "admin" else ""
-    general_link = '<a class="nav-link" href="/reporte-general"><span class="nav-ico">RG</span><span>Reporte General</span></a>' if user.get("rol") == "admin" else ""
     report_label = "Reportes de Unidades" if user.get("rol") == "admin" else "Reportes Guardados"
-    report_link = f'<a class="nav-link" href="/historial"><span class="nav-ico">RP</span><span>{report_label}</span></a>'
-    users_link = '<a class="nav-link" href="/usuarios"><span class="nav-ico">US</span><span>Usuarios</span></a>' if user.get("rol") == "admin" else ""
-    ingresos_link = '<a class="nav-link" href="/ingresos"><span class="nav-ico">IN</span><span>Ingresos</span></a>' if user.get("rol") == "admin" else ""
-    security_link = '<a class="nav-link" href="/seguridad"><span class="nav-ico">SG</span><span>Seguridad</span></a>' if user.get("rol") == "admin" else ""
+
+    def nav_link(path, label, icon, extra_class=""):
+        return f'<a class="nav-link {extra_class}" href="{path}" data-path="{path}" aria-label="{h(label)}"><span class="nav-ico">{nav_icon(icon)}</span><span class="nav-text">{h(label)}</span></a>'
+
+    novedades_link = nav_link("/novedades", "Novedades", "novedades") if user.get("rol") == "admin" else ""
+    general_link = nav_link("/reporte-general", "Reporte General", "general") if user.get("rol") == "admin" else ""
+    report_link = nav_link("/historial", report_label, "reportes")
+    users_link = nav_link("/usuarios", "Usuarios", "usuarios") if user.get("rol") == "admin" else ""
+    ingresos_link = nav_link("/ingresos", "Ingresos", "ingresos") if user.get("rol") == "admin" else ""
+    security_link = nav_link("/seguridad", "Seguridad", "seguridad") if user.get("rol") == "admin" else ""
+    admin_group = f"""
+            <div class="nav-group">
+                <div class="nav-section">Administraci&oacute;n</div>
+                {users_link}
+                {ingresos_link}
+                {security_link}
+            </div>
+    """ if user.get("rol") == "admin" else ""
     return page_shell(
         "Parte de Fuerza",
         f"""
@@ -1610,20 +1637,44 @@ def layout(content, user=None):
     </div>
     <div class="title-block"><h1>PARTE DE FUERZA</h1><p>FUERZA EFECTIVA, DISPONIBLE Y NOVEDADES</p></div>
 </header>
+<input class="sidebar-toggle no-print" type="checkbox" id="sidebarToggle" aria-label="Abrir men&uacute;">
+<label class="sidebar-hamburger no-print" for="sidebarToggle" aria-label="Abrir men&uacute;"><span></span><span></span><span></span></label>
 <div class="app-shell">
     <aside class="sidebar no-print">
-        <a class="nav-link active" href="/parte"><span class="nav-ico">PF</span><span>Parte de Fuerza</span></a>
-        {novedades_link}
-        <a class="nav-link" href="/funcionarios"><span class="nav-ico">FN</span><span>Funcionarios</span></a>
-        {general_link}
-        {report_link}
-        {users_link}
-        {ingresos_link}
-        {security_link}
-        <a class="nav-link logout-link" href="/logout"><span class="nav-ico">CS</span><span>Cerrar Sesi&oacute;n</span></a>
+        <div class="sidebar-head">
+            <span class="sidebar-kicker">Sistema Administrativo</span>
+            <strong>Parte de Fuerza</strong>
+            <small>Distrito Cuatro de Polic&iacute;a Purificaci&oacute;n</small>
+        </div>
+        <nav class="sidebar-nav" aria-label="Men&uacute; principal">
+            <div class="nav-group">
+                <div class="nav-section">Operativo</div>
+                {nav_link("/parte", "Parte de Fuerza", "parte")}
+                {novedades_link}
+                {nav_link("/funcionarios", "Funcionarios", "funcionarios")}
+            </div>
+            <div class="nav-group">
+                <div class="nav-section">Reportes</div>
+                {general_link}
+                {report_link}
+            </div>
+            {admin_group}
+        </nav>
+        <div class="sidebar-footer">
+            {nav_link("/logout", "Cerrar Sesi&oacute;n", "salir", "logout-link")}
+        </div>
     </aside>
+    <label class="sidebar-scrim no-print" for="sidebarToggle" aria-label="Cerrar men&uacute;"></label>
     <main class="content">{content}</main>
 </div>
+<script>
+document.querySelectorAll(".sidebar .nav-link").forEach((link) => {{
+    const path = link.getAttribute("data-path");
+    if (path === window.location.pathname || (path === "/historial" && window.location.pathname === "/reporte")) {{
+        link.classList.add("active");
+    }}
+}});
+</script>
 """,
     )
 
