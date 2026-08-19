@@ -1822,8 +1822,9 @@ def funcionarios_page(user=None):
     )
     unidad_options = "".join(f"<option value='{u['id']}'>{h(u['nombre'])}</option>" for u in unidades)
     categoria_options = "".join(f"<option value='{k}'>{v}</option>" for k, v in CATEGORIAS.items())
-
-    content = f"""
+    registro_form = ""
+    if user.get("rol") == "admin":
+        registro_form = f"""
 <section class="panel">
     <h2>Registrar funcionario</h2>
     <form method="POST" action="/funcionarios" class="grid seven">
@@ -1836,6 +1837,10 @@ def funcionarios_page(user=None):
         <button class="btn primary">Guardar</button>
     </form>
 </section>
+"""
+
+    content = f"""
+{registro_form}
 <section class="panel">
     <h2>Funcionarios</h2>
     <table class="data-table"><thead><tr><th>Grado</th><th>Funcionario</th><th>Categor&iacute;a</th><th>Cargo</th><th>Unidad</th><th>Estado</th></tr></thead><tbody>{rows}</tbody></table>
@@ -2559,7 +2564,10 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path == "/funcionarios":
             form = parse_qs(self.read_body())
             user = self.current_user()
-            unidad_id = user.get("unidad_id") if user.get("rol") == "unidad" else form.get("unidad_id", ["1"])[0]
+            if user.get("rol") != "admin":
+                record_security_event(self.client_ip(), user.get("email", ""), "Registro funcionario no autorizado", parsed.path)
+                return self.send_html("No autorizado", 403)
+            unidad_id = form.get("unidad_id", ["1"])[0]
             with db() as conn:
                 conn.execute(
                     "INSERT INTO funcionarios (grado, nombres, apellidos, cargo, categoria, unidad_id) VALUES (?, ?, ?, ?, ?, ?)",
