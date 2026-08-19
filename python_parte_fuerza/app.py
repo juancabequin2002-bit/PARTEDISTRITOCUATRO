@@ -1813,9 +1813,15 @@ def parte_page(user=None):
 
         <section class="panel" id="novedades">
             <div class="section-head"><h2>2. Novedades del personal</h2><button type="button" class="btn primary" id="toggleNovedad">+ Registrar Novedad</button></div>
-            <div class="subpanel" id="novedadForm">
-                <h3>Registrar novedad</h3>
-                <div class="grid three">
+            <div class="subpanel novelty-modal" id="novedadForm">
+                <div class="novelty-modal-head">
+                    <span class="novelty-head-icon">+</span>
+                    <div>
+                        <h3>Registrar novedad</h3>
+                        <p>Diligencie la informaci&oacute;n de la novedad del funcionario</p>
+                    </div>
+                </div>
+                <div class="grid three novelty-grid">
                     <label>Unidad<select id="unidad_novedad_id">{unidad_options}</select></label>
                     <label>Tipo de novedad<select id="tipo_novedad"><option value="">Seleccione...</option>{tipos_options}</select></label>
                     <label>Funcionario<select id="funcionario_id"><option value="">Seleccione...</option></select></label>
@@ -1840,7 +1846,7 @@ def parte_page(user=None):
                     </label>
                     <div class="alert info compact-alert">Este campo es obligatorio cuando el tipo es Otra novedad.</div>
                 </div>
-                <div class="grid four compact">
+                <div class="grid four compact novelty-time-grid">
                     <label>Fecha inicio<input type="date" id="fecha_inicio" value="{fecha_default}"></label>
                     <label>Hora inicio<input type="time" id="hora_inicio" value="06:00"></label>
                     <label>Fecha fin<input type="date" id="fecha_fin" value="{fecha_default}"></label>
@@ -1848,12 +1854,12 @@ def parte_page(user=None):
                 </div>
                 <div class="novedad-actions">
                     <div class="duration-box">D&iacute;as calculados: <strong id="diasTexto">0 d&iacute;as</strong></div>
-                    <div class="actions-inline">
-                        <button type="button" class="btn outline" id="cancelarNovedad">Cancelar</button>
-                        <button type="button" class="btn primary" id="guardarNovedad">Guardar Novedad</button>
+                    <div class="actions-inline novelty-buttons">
+                        <button type="button" class="btn outline novelty-cancel" id="cancelarNovedad">Cancelar</button>
+                        <button type="button" class="btn primary novelty-save" id="guardarNovedad">Guardar Novedad</button>
                     </div>
                 </div>
-                <div class="alert info">El c&aacute;lculo de d&iacute;as se realiza autom&aacute;ticamente.</div>
+                <div class="alert info novelty-help">El c&aacute;lculo de d&iacute;as se realiza autom&aacute;ticamente.</div>
             </div>
             <table class="data-table">
                 <thead><tr><th>Tipo</th><th>Funcionario</th><th>Inicio</th><th>Fin</th><th>D&iacute;as</th><th>PSI</th><th>Acci&oacute;n</th></tr></thead>
