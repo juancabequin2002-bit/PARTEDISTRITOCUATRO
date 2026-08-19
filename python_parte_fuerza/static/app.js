@@ -414,7 +414,7 @@
     document.querySelectorAll(".efectiva").forEach((input) => input.addEventListener("input", calcularFuerzaDisponible));
     ["fecha_inicio", "hora_inicio", "fecha_fin", "hora_fin"].forEach((id) => $(id).addEventListener("input", calcularDias));
     $("unidad_id").addEventListener("change", () => {
-        calcularFuerzaDisponible();
+        actualizarEfectivaPorUnidad();
         cargarNovedadesVigentes();
     });
     $("unidad_novedad_id").addEventListener("change", () => {
@@ -474,6 +474,7 @@
     });
 
     actualizarFechaHoraParte();
+    actualizarEfectivaPorUnidad();
     renderFuncionarios();
     calcularDias();
     renderNovedades();
