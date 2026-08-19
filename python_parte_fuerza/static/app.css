@@ -878,6 +878,8 @@ body.novedad-modal-open::before {
     background: #fff;
     margin-bottom: 4px;
     box-shadow: 0 10px 26px rgba(0, 42, 21, .22);
+    aspect-ratio: 16 / 9;
+    max-height: 360px;
 }
 
 .login-card label {
