@@ -1668,7 +1668,7 @@ def layout(content, user=None):
             {admin_group}
         </nav>
         <div class="sidebar-footer">
-            {nav_link("/logout", "Cerrar Sesi&oacute;n", "salir", "logout-link")}
+            {nav_link("/logout", "Cerrar Sesion", "salir", "logout-link")}
         </div>
     </aside>
     <label class="sidebar-scrim no-print" for="sidebarToggle" aria-label="Cerrar men&uacute;"></label>
