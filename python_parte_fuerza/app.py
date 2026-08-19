@@ -1603,7 +1603,7 @@ def layout(content, user=None):
         "Parte de Fuerza",
         f"""
 <header class="topbar no-print">
-    <video class="topbar-video" autoplay muted loop playsinline preload="auto" src="/video-fondo"></video>
+    <video class="topbar-video" autoplay muted loop playsinline preload="auto" src="/static/topbar_background.mp4"></video>
     <div class="brand">
         <img class="logo-img" src="/static/logo_policia.png" alt="Polic&iacute;a Nacional">
         <div><strong>POLIC&Iacute;A NACIONAL</strong><span>{h(unit_name)}</span></div>
@@ -1639,7 +1639,7 @@ def login_page(error=""):
     <link rel="stylesheet" href="/static/app.css">
 </head>
 <body class="login-page">
-    <video class="login-bg-video" autoplay muted loop playsinline preload="auto" src="/video-login"></video>
+    <video class="login-bg-video" autoplay muted loop playsinline preload="auto" src="/static/login_background.mp4"></video>
     <form method="POST" action="/login" class="login-card" novalidate>
         <img class="login-hero" src="/static/login_parte_fuerza.png" alt="Parte de Fuerza">
         {alert}
@@ -2711,6 +2711,7 @@ class Handler(BaseHTTPRequestHandler):
             ".gif": "image/gif",
             ".svg": "image/svg+xml",
             ".ico": "image/x-icon",
+            ".mp4": "video/mp4",
         }
         content_type = content_types.get(file_path.suffix.lower(), "application/octet-stream")
         body = file_path.read_bytes()
