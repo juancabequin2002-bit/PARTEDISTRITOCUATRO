@@ -862,12 +862,12 @@ body.novedad-modal-open::before {
     padding: 18px 22px 26px;
     border-radius: 14px;
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, .88), rgba(255, 255, 255, .78)),
+        linear-gradient(180deg, rgba(255, 255, 255, .20), rgba(0, 47, 24, .18)),
         url("/static/login_card_background.png") center center / cover no-repeat;
     box-shadow: 0 24px 70px rgba(0, 0, 0, .25);
     position: relative;
     z-index: 1;
-    border: 1px solid rgba(255, 255, 255, .76);
+    border: 1px solid rgba(255, 255, 255, .84);
 }
 
 .login-hero {
@@ -877,11 +877,12 @@ body.novedad-modal-open::before {
     object-fit: contain;
     background: #fff;
     margin-bottom: 4px;
-    box-shadow: 0 10px 26px rgba(0, 42, 21, .12);
+    box-shadow: 0 10px 26px rgba(0, 42, 21, .22);
 }
 
 .login-card label {
-    color: #031a0d;
+    color: #fff;
+    text-shadow: 0 2px 5px rgba(0, 20, 10, .45);
 }
 
 .login-card input {
