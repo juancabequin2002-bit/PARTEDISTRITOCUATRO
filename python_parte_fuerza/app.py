@@ -34,6 +34,7 @@ DB_PATH = DATA_DIR / "parte_fuerza.db"
 DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
 USE_POSTGRES = DATABASE_URL.startswith(("postgres://", "postgresql://"))
 STATIC_DIR = BASE_DIR / "static"
+ASSET_VERSION = "20260820-fuerza-disponible"
 SOURCE_XLSX = BASE_DIR.parent / "personal del distrito.xlsx"
 SOURCE_SEED = BASE_DIR / "personal_seed.json"
 VIDEO_FONDO = STATIC_DIR / "topbar_background.mp4"
@@ -1014,7 +1015,7 @@ def page_shell(title, body):
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{title}</title>
-    <link rel="stylesheet" href="/static/app.css">
+    <link rel="stylesheet" href="/static/app.css?v={ASSET_VERSION}">
 </head>
 <body>
 {body}
@@ -1694,7 +1695,7 @@ def login_page(error=""):
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Ingreso - Parte de Fuerza</title>
-    <link rel="stylesheet" href="/static/app.css">
+    <link rel="stylesheet" href="/static/app.css?v={ASSET_VERSION}">
 </head>
 <body class="login-page">
     <video class="login-bg-video" autoplay muted loop playsinline preload="auto" src="/static/login_background.mp4"></video>
@@ -1895,7 +1896,7 @@ window.ParteFuerza = {{
     funcionarios: {json.dumps(funcionarios, ensure_ascii=False)}
 }};
 </script>
-<script src="/static/app.js"></script>
+<script src="/static/app.js?v={ASSET_VERSION}"></script>
 """
     return layout(content, user)
 
@@ -2813,7 +2814,8 @@ class Handler(BaseHTTPRequestHandler):
         return self.send_json({"error": "No encontrado"}, 404)
 
     def static(self, path):
-        file_path = STATIC_DIR / path.replace("/static/", "")
+        static_path = urlparse(path).path
+        file_path = STATIC_DIR / static_path.replace("/static/", "")
         if not file_path.exists():
             return self.send_html("No encontrado", 404)
         content_types = {
