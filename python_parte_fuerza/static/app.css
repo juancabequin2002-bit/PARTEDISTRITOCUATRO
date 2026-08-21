@@ -1529,6 +1529,7 @@ body.novedad-modal-open::before {
     border-radius: 14px;
     background: #fff;
     box-shadow: 0 10px 24px rgba(0, 63, 32, .06);
+    overflow: hidden;
 }
 
 .force-stat span {
@@ -1570,7 +1571,11 @@ body.novedad-modal-open::before {
 }
 
 .stat-progress span {
-    font-size: 20px;
+    max-width: 100%;
+    font-size: clamp(16px, 1.15vw, 20px);
+    line-height: 1.08;
+    overflow-wrap: anywhere;
+    white-space: normal;
 }
 
 .availability-bar {
