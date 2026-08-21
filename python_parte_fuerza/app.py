@@ -1812,7 +1812,7 @@ def parte_page(user=None):
         <div class="flow-arrow no-mobile"><span>OK</span><small>C&aacute;lculo<br>Autom&aacute;tico</small></div>
 
         <section class="panel" id="novedades">
-            <div class="section-head"><h2>2. Novedades del personal</h2><button type="button" class="btn primary" id="toggleNovedad">+ Registrar Novedad</button></div>
+            <div class="section-head"><h2>2. Novedades del personal</h2><button type="button" class="btn primary icon-action" id="toggleNovedad"><span class="btn-plus-icon">+</span><span>Registrar Novedad</span></button></div>
             <div class="subpanel novelty-modal" id="novedadForm">
                 <div class="novelty-modal-head">
                     <span class="novelty-head-icon">+</span>

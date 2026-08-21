@@ -646,6 +646,25 @@ label {
     background: linear-gradient(135deg, var(--green-950), var(--green-700));
 }
 
+.icon-action {
+    padding-left: 10px;
+}
+
+.btn-plus-icon {
+    display: grid;
+    width: 32px;
+    height: 32px;
+    place-items: center;
+    flex: 0 0 auto;
+    border-radius: 8px;
+    color: #fff;
+    background: linear-gradient(135deg, #0b4d7d, #1d7ec2);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .18), 0 8px 18px rgba(11, 77, 125, .22);
+    font-size: 22px;
+    font-weight: 900;
+    line-height: 1;
+}
+
 .btn.outline {
     color: var(--green-900);
     background: #fff;
@@ -746,7 +765,7 @@ label {
     margin: 0 auto 8px;
     display: grid;
     place-items: center;
-    border-radius: 50%;
+    border-radius: 12px;
     font-size: 15px;
     color: #fff;
     background: linear-gradient(135deg, var(--green-950), var(--green-700));
@@ -1460,6 +1479,7 @@ body.novedad-modal-open::before {
     background: linear-gradient(135deg, var(--green-950), #0aa85a);
     box-shadow: 0 12px 24px rgba(0, 99, 51, .22);
     font-size: 13px;
+    border-radius: 12px;
 }
 
 .force-head-pill {
@@ -1583,6 +1603,43 @@ body.novedad-modal-open::before {
     border-radius: 12px;
     border-color: #d6e5dc;
     box-shadow: 0 10px 24px rgba(0, 63, 32, .04);
+}
+
+.force-available-table {
+    table-layout: fixed;
+    width: 100%;
+    min-width: 500px;
+}
+
+.force-available-table th,
+.force-available-table td {
+    overflow-wrap: anywhere;
+    word-break: normal;
+}
+
+.force-available-table th {
+    white-space: normal;
+    text-align: center;
+    line-height: 1.15;
+}
+
+.force-available-table th:first-child,
+.force-available-table td:first-child {
+    width: 36%;
+    text-align: left;
+}
+
+.force-available-table th:nth-child(2),
+.force-available-table td:nth-child(2),
+.force-available-table th:nth-child(3),
+.force-available-table td:nth-child(3),
+.force-available-table th:nth-child(4),
+.force-available-table td:nth-child(4) {
+    width: 21.333%;
+}
+
+.force-available-table th:nth-child(4) {
+    font-size: 11px;
 }
 
 .force-table thead th {
