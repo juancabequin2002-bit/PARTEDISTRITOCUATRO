@@ -563,7 +563,9 @@ label {
 }
 
 .psi-field,
-.other-field {
+.other-field,
+.permit-field,
+.permit-other-field {
     display: grid;
     grid-template-columns: 1fr 2fr;
     gap: 16px;
@@ -576,7 +578,9 @@ label {
 }
 .psi-field select { max-width: 220px; }
 .psi-field .alert,
-.other-field .alert { margin: 0; }
+.other-field .alert,
+.permit-field .alert,
+.permit-other-field .alert { margin: 0; }
 
 .cargo-funcionario {
     grid-template-columns: 150px 1fr;
@@ -883,6 +887,8 @@ body.novedad-modal-open::before {
 .novelty-modal > .grid,
 .novelty-modal > .cargo-funcionario,
 .novelty-modal > .psi-field,
+.novelty-modal > .permit-field,
+.novelty-modal > .permit-other-field,
 .novelty-modal > .other-field,
 .novelty-modal > .novedad-actions,
 .novelty-modal > .alert {
@@ -926,6 +932,8 @@ body.novedad-modal-open::before {
 
 .novelty-modal .cargo-funcionario,
 .novelty-modal .psi-field,
+.novelty-modal .permit-field,
+.novelty-modal .permit-other-field,
 .novelty-modal .other-field {
     border-color: #c7ddcf;
     border-radius: 13px;
@@ -2174,7 +2182,9 @@ body.novedad-modal-open::before {
     }
 
     .psi-field,
-    .other-field {
+    .other-field,
+    .permit-field,
+    .permit-other-field {
         grid-template-columns: 1fr;
     }
 
@@ -2399,6 +2409,8 @@ body.novedad-modal-open::before {
     .novelty-modal > .grid,
     .novelty-modal > .cargo-funcionario,
     .novelty-modal > .psi-field,
+    .novelty-modal > .permit-field,
+    .novelty-modal > .permit-other-field,
     .novelty-modal > .other-field,
     .novelty-modal > .novedad-actions,
     .novelty-modal > .alert {

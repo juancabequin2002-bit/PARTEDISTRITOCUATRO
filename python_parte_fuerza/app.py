@@ -34,7 +34,7 @@ DB_PATH = DATA_DIR / "parte_fuerza.db"
 DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
 USE_POSTGRES = DATABASE_URL.startswith(("postgres://", "postgresql://"))
 STATIC_DIR = BASE_DIR / "static"
-ASSET_VERSION = "20260820-fuerza-disponible"
+ASSET_VERSION = "20260821-tipo-permiso"
 SOURCE_XLSX = BASE_DIR.parent / "personal del distrito.xlsx"
 SOURCE_SEED = BASE_DIR / "personal_seed.json"
 VIDEO_FONDO = STATIC_DIR / "topbar_background.mp4"
@@ -78,6 +78,30 @@ TIPOS_NOVEDAD = [
     "Licencia",
     "Suspensi\u00f3n",
     "Otra novedad",
+]
+
+TIPOS_PERMISO = [
+    "Actividad Personal",
+    "Autorizaci\u00f3n - Salida de la jurisdicci\u00f3n",
+    "Calamidad - Calamidad Personal o Familiar",
+    "Cita M\u00e9dica",
+    "Citaci\u00f3n Judicial",
+    "Compensaci\u00f3n",
+    "Compensaci\u00f3n por Apoyo de Servicio Personal Uniformado",
+    "Condiciones que Favorecen la Calidad de Vida - Permiso - Soluci\u00f3n de Vivienda CAJAHONOR",
+    "Descanso Especial - Navide\u00f1o",
+    "Descanso Especial - Permisos Extraordinarios",
+    "Descanso Especial - Semana Santa",
+    "D\u00edas Especiales - Ascenso",
+    "D\u00edas Especiales - Cumplea\u00f1os",
+    "D\u00edas Especiales - Hora de Lactancia",
+    "D\u00edas Especiales - Mes de Hora de Lactancia Adicional",
+    "D\u00edas Especiales - Obtenci\u00f3n de T\u00edtulo Acad\u00e9mico",
+    "D\u00edas Especiales - Otorgamiento de Condecoraciones, Distintivos y Distinciones",
+    "D\u00edas Especiales - Registrar al Hijo(a) en la Notar\u00eda",
+    "Finalista Premio Excelencia Policial",
+    "Horario Flexible - Funcionario con Discapacidad",
+    "Otro",
 ]
 
 ORDEN_UNIDADES = [
@@ -368,6 +392,8 @@ def init_db():
                 hora_fin TEXT NOT NULL,
                 dias_calculados REAL NOT NULL,
                 observaciones TEXT,
+                tipo_permiso TEXT,
+                tipo_permiso_otro TEXT,
                 estado TEXT NOT NULL DEFAULT 'activa'
             );
 
@@ -449,6 +475,8 @@ def init_db():
                 dias_calculados REAL NOT NULL,
                 observaciones TEXT,
                 solicitud_psi TEXT,
+                tipo_permiso TEXT,
+                tipo_permiso_otro TEXT,
                 estado TEXT NOT NULL DEFAULT 'activa'
             );
 
@@ -481,6 +509,8 @@ def init_db():
         ensure_column(conn, "funcionarios", "cargo", "TEXT")
         ensure_column(conn, "partes", "creado_en", "TEXT")
         ensure_column(conn, "novedades", "solicitud_psi", "TEXT")
+        ensure_column(conn, "novedades", "tipo_permiso", "TEXT")
+        ensure_column(conn, "novedades", "tipo_permiso_otro", "TEXT")
         ensure_column(conn, "login_logs", "equipo_nombre", "TEXT")
         conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_unidades_nombre ON unidades(nombre)")
         conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_funcionarios_cedula ON funcionarios(cedula)")
@@ -569,6 +599,11 @@ def h(value):
 def tipo_novedad_text(novedad):
     tipo = novedad.get("tipo_novedad", "")
     detalle = str(novedad.get("observaciones") or "").strip()
+    tipo_permiso = str(novedad.get("tipo_permiso") or "").strip()
+    tipo_permiso_otro = str(novedad.get("tipo_permiso_otro") or "").strip()
+    if tipo == "Permiso" and tipo_permiso:
+        permiso = tipo_permiso_otro if tipo_permiso == "Otro" and tipo_permiso_otro else tipo_permiso
+        return f"{tipo}: {permiso}"
     if tipo == "Otra novedad" and detalle:
         return f"{tipo}: {detalle}"
     return tipo
@@ -843,6 +878,8 @@ def novedades_vigentes(fecha, hora, unidad_id):
                     n.dias_calculados,
                     n.observaciones,
                     n.solicitud_psi,
+                    n.tipo_permiso,
+                    n.tipo_permiso_otro,
                     f.grado,
                     f.nombres,
                     f.apellidos,
@@ -894,6 +931,8 @@ def novedades_vigentes(fecha, hora, unidad_id):
                 "dias_calculados": float(row["dias_calculados"] or 0),
                 "observaciones": row.get("observaciones") or "",
                 "solicitud_psi": row.get("solicitud_psi") or "",
+                "tipo_permiso": row.get("tipo_permiso") or "",
+                "tipo_permiso_otro": row.get("tipo_permiso_otro") or "",
             }
         )
     return vigentes
@@ -976,6 +1015,12 @@ def validar_novedades(data, novedades):
                 raise ValueError("Tipo de novedad no v&aacute;lido.")
             if novedad["tipo_novedad"] in ("Permiso", "Franquicia") and not novedad.get("solicitud_psi"):
                 raise ValueError("Debe indicar si la solicitud de permiso es por PSI (Sí o No).")
+            if novedad["tipo_novedad"] == "Permiso" and not novedad.get("tipo_permiso"):
+                raise ValueError("Debe seleccionar el tipo de permiso.")
+            if novedad["tipo_novedad"] == "Permiso" and novedad.get("tipo_permiso") not in TIPOS_PERMISO:
+                raise ValueError("Tipo de permiso no v&aacute;lido.")
+            if novedad["tipo_novedad"] == "Permiso" and novedad.get("tipo_permiso") == "Otro" and not str(novedad.get("tipo_permiso_otro") or "").strip():
+                raise ValueError("Debe escribir qu&eacute; permiso tiene el funcionario.")
             if novedad["tipo_novedad"] == "Otra novedad" and not str(novedad.get("observaciones") or "").strip():
                 raise ValueError("Debe escribir qu&eacute; novedad tiene el funcionario.")
             if novedad.get("solicitud_psi") and novedad["solicitud_psi"] not in ("Si", "No"):
@@ -1738,6 +1783,7 @@ def parte_page(user=None):
         for u in unidades
     )
     tipos_options = "".join(f"<option>{tipo}</option>" for tipo in TIPOS_NOVEDAD)
+    tipos_permiso_options = "".join(f"<option>{h(tipo)}</option>" for tipo in TIPOS_PERMISO)
     report_button_label = "Reportes de Unidades" if user.get("rol") == "admin" else "Reportes Guardados"
     report_button = f'<a class="btn outline full" href="/historial">{report_button_label}</a>'
 
@@ -1840,6 +1886,21 @@ def parte_page(user=None):
                         </select>
                     </label>
                     <div class="alert info compact-alert">Este campo es obligatorio cuando el tipo de novedad es Permiso o Franquicia.</div>
+                </div>
+                <div class="permit-field" id="tipoPermisoField" style="display:none;">
+                    <label>Tipo de permiso
+                        <select id="tipo_permiso">
+                            <option value="">Seleccione...</option>
+                            {tipos_permiso_options}
+                        </select>
+                    </label>
+                    <div class="alert info compact-alert">Seleccione el tipo de permiso que corresponde al funcionario.</div>
+                </div>
+                <div class="permit-other-field" id="otroPermisoField" style="display:none;">
+                    <label>Qu&eacute; permiso
+                        <input type="text" id="tipo_permiso_otro" maxlength="255" placeholder="Escriba el tipo de permiso">
+                    </label>
+                    <div class="alert info compact-alert">Este campo es obligatorio cuando selecciona Otro.</div>
                 </div>
                 <div class="other-field" id="otraNovedadField" style="display:none;">
                     <label>Qu&eacute; novedad tiene
@@ -2055,6 +2116,8 @@ def novedades_page(user=None, query=""):
                     up.nombre unidad_parte,
                     n.tipo_novedad,
                     n.observaciones,
+                    n.tipo_permiso,
+                    n.tipo_permiso_otro,
                     n.fecha_inicio,
                     n.hora_inicio,
                     n.fecha_fin,
@@ -2086,7 +2149,7 @@ def novedades_page(user=None, query=""):
         <tr>
             <td>{h(novedad['unidad_parte'])}</td>
             <td>{h(novedad['comandante'])}</td>
-            <td>{h(novedad['tipo_novedad'])}{('<br><small>' + h(novedad.get('observaciones')) + '</small>') if novedad['tipo_novedad'] == 'Otra novedad' and novedad.get('observaciones') else ''}</td>
+            <td>{h(tipo_novedad_text(novedad))}</td>
             <td>{h(funcionario)}</td>
             <td>{h(novedad.get('cargo') or 'Sin cargo registrado')}</td>
             <td>{h(novedad['unidad_funcionario'])}</td>
@@ -2232,7 +2295,7 @@ def reporte_general_page(user=None, query=""):
         <tr>
             <td>{h(novedad['unidad_reporta'])}</td>
             <td>{h(novedad['comandante'])}</td>
-            <td>{h(novedad['tipo_novedad'])}{('<br><small>' + h(novedad.get('observaciones')) + '</small>') if novedad['tipo_novedad'] == 'Otra novedad' and novedad.get('observaciones') else ''}</td>
+            <td>{h(tipo_novedad_text(novedad))}</td>
             <td>{h(funcionario)}</td>
             <td>{h(novedad.get('cargo') or 'Sin cargo registrado')}</td>
             <td>{h(novedad['unidad_funcionario'])}</td>
@@ -2287,7 +2350,7 @@ def reporte_page(parte_id, user=None):
     for novedad in reporte["novedades"]:
         funcionario = f"{novedad['grado']} {novedad['nombres']} {novedad['apellidos']}"
         cargo = novedad.get("cargo") or "Sin cargo registrado"
-        tipo = f"{h(novedad['tipo_novedad'])}{('<br><small>' + h(novedad.get('observaciones')) + '</small>') if novedad['tipo_novedad'] == 'Otra novedad' and novedad.get('observaciones') else ''}"
+        tipo = h(tipo_novedad_text(novedad))
         nov_rows += f"<tr><td>{tipo}</td><td>{h(funcionario)}</td><td>{h(cargo)}</td><td>{h(novedad['fecha_inicio'])} {h(novedad['hora_inicio'])}</td><td>{h(novedad['fecha_fin'])} {h(novedad['hora_fin'])}</td><td>{h(novedad['dias_calculados'])}</td><td>{h(novedad.get('solicitud_psi') or '-')}</td></tr>"
     if not nov_rows:
         nov_rows = "<tr><td colspan='7'>Sin novedades registradas.</td></tr>"
@@ -2784,8 +2847,8 @@ class Handler(BaseHTTPRequestHandler):
                             INSERT INTO novedades (
                                 parte_id, funcionario_id, tipo_novedad, fecha_inicio,
                                 hora_inicio, fecha_fin, hora_fin, dias_calculados,
-                                observaciones, solicitud_psi, estado
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'activa')
+                                observaciones, solicitud_psi, tipo_permiso, tipo_permiso_otro, estado
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'activa')
                             """,
                             (
                                 parte_id,
@@ -2798,6 +2861,8 @@ class Handler(BaseHTTPRequestHandler):
                                 dias,
                                 novedad.get("observaciones", ""),
                                 novedad.get("solicitud_psi", ""),
+                                novedad.get("tipo_permiso", ""),
+                                novedad.get("tipo_permiso_otro", ""),
                             ),
                         )
                 return self.send_json(

@@ -11,6 +11,8 @@
 
     const PSI_TIPOS = ["Permiso", "Franquicia"];
     const psiRequerido = (tipo) => PSI_TIPOS.includes(tipo);
+    const permisoRequerido = (tipo) => tipo === "Permiso";
+    const otroPermisoRequerido = () => $("tipo_permiso").value === "Otro";
     const otraNovedadRequerida = (tipo) => tipo === "Otra novedad";
     const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({
         "&": "&amp;",
@@ -233,6 +235,8 @@
             dias_calculados: calcularDias(),
             observaciones: otraNovedadRequerida($("tipo_novedad").value) ? $("otra_novedad_detalle").value.trim() : "",
             solicitud_psi: $("solicitud_psi").value,
+            tipo_permiso: permisoRequerido($("tipo_novedad").value) ? $("tipo_permiso").value : "",
+            tipo_permiso_otro: permisoRequerido($("tipo_novedad").value) && $("tipo_permiso").value === "Otro" ? $("tipo_permiso_otro").value.trim() : "",
         };
     }
 
@@ -277,6 +281,8 @@
         if (!$("unidad_novedad_id").value) return "Debe seleccionar la unidad de la novedad.";
         if (!novedad.tipo_novedad) return "Debe seleccionar el tipo de novedad.";
         if (psiRequerido(novedad.tipo_novedad) && !novedad.solicitud_psi) return "Debe indicar si la solicitud de permiso es por PSI (Sí o No).";
+        if (permisoRequerido(novedad.tipo_novedad) && !novedad.tipo_permiso) return "Debe seleccionar el tipo de permiso.";
+        if (permisoRequerido(novedad.tipo_novedad) && novedad.tipo_permiso === "Otro" && !novedad.tipo_permiso_otro) return "Debe escribir qué permiso tiene el funcionario.";
         if (otraNovedadRequerida(novedad.tipo_novedad) && !novedad.observaciones) return "Debe escribir qué novedad tiene el funcionario.";
         if (!novedad.funcionario_id) return "Debe seleccionar el funcionario.";
         if (!novedad.fecha_inicio || !novedad.hora_inicio) return "Debe ingresar fecha y hora de inicio.";
@@ -317,8 +323,12 @@
         $("tipo_novedad").value = "";
         $("funcionario_id").value = "";
         $("solicitud_psi").value = "";
+        $("tipo_permiso").value = "";
+        $("tipo_permiso_otro").value = "";
         $("otra_novedad_detalle").value = "";
         $("psiField").style.display = "none";
+        $("tipoPermisoField").style.display = "none";
+        $("otroPermisoField").style.display = "none";
         $("otraNovedadField").style.display = "none";
         $("guardarNovedad").textContent = "Guardar Novedad";
         calcularDias();
@@ -343,9 +353,10 @@
             const tr = document.createElement("tr");
             const etiqueta = novedad.automatica ? '<br><span class="mini-badge">Vigente</span>' : "";
             const detalle = otraNovedadRequerida(novedad.tipo_novedad) && novedad.observaciones ? `<br><small>${escapeHtml(novedad.observaciones)}</small>` : "";
+            const permisoDetalle = permisoRequerido(novedad.tipo_novedad) && novedad.tipo_permiso ? `<br><small>${escapeHtml(novedad.tipo_permiso === "Otro" && novedad.tipo_permiso_otro ? novedad.tipo_permiso_otro : novedad.tipo_permiso)}</small>` : "";
             const unidad = novedad.unidad_nombre ? `<br><small>${escapeHtml(novedad.unidad_nombre)}</small>` : "";
             tr.innerHTML = `
-                <td><strong>${escapeHtml(novedad.tipo_novedad)}</strong>${detalle}${etiqueta}</td>
+                <td><strong>${escapeHtml(novedad.tipo_novedad)}</strong>${permisoDetalle}${detalle}${etiqueta}</td>
                 <td><strong>${escapeHtml(novedad.grado)}</strong><br>${escapeHtml(novedad.funcionario)}${unidad}</td>
                 <td>${escapeHtml(formatDate(novedad.fecha_inicio))}<br>${escapeHtml(novedad.hora_inicio)}</td>
                 <td>${escapeHtml(formatDate(novedad.fecha_fin))}<br>${escapeHtml(novedad.hora_fin)}</td>
@@ -490,8 +501,18 @@
     $("tipo_novedad").addEventListener("change", () => {
         const tipo = $("tipo_novedad").value;
         $("psiField").style.display = psiRequerido(tipo) ? "block" : "none";
+        $("tipoPermisoField").style.display = permisoRequerido(tipo) ? "block" : "none";
         $("otraNovedadField").style.display = otraNovedadRequerida(tipo) ? "block" : "none";
+        if (!permisoRequerido(tipo)) {
+            $("tipo_permiso").value = "";
+            $("tipo_permiso_otro").value = "";
+            $("otroPermisoField").style.display = "none";
+        }
         if (!otraNovedadRequerida(tipo)) $("otra_novedad_detalle").value = "";
+    });
+    $("tipo_permiso").addEventListener("change", () => {
+        $("otroPermisoField").style.display = otroPermisoRequerido() ? "block" : "none";
+        if (!otroPermisoRequerido()) $("tipo_permiso_otro").value = "";
     });
     $("guardarNovedad").addEventListener("click", guardarNovedad);
     $("cancelarNovedad").addEventListener("click", cerrarFormularioNovedad);
@@ -520,8 +541,12 @@
             $("fecha_fin").value = novedad.fecha_fin;
             $("hora_fin").value = novedad.hora_fin;
             $("solicitud_psi").value = novedad.solicitud_psi || "";
+            $("tipo_permiso").value = novedad.tipo_permiso || "";
+            $("tipo_permiso_otro").value = novedad.tipo_permiso_otro || "";
             $("otra_novedad_detalle").value = novedad.observaciones || "";
             $("psiField").style.display = psiRequerido(novedad.tipo_novedad) ? "block" : "none";
+            $("tipoPermisoField").style.display = permisoRequerido(novedad.tipo_novedad) ? "block" : "none";
+            $("otroPermisoField").style.display = novedad.tipo_permiso === "Otro" ? "block" : "none";
             $("otraNovedadField").style.display = otraNovedadRequerida(novedad.tipo_novedad) ? "block" : "none";
             $("guardarNovedad").textContent = "Actualizar Novedad";
             abrirFormularioNovedad();
