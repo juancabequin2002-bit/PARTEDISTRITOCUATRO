@@ -708,7 +708,14 @@ def import_excel_personal(conn):
 
     unidades = sorted({row.get("UNIDAD", "") for row in rows if row.get("UNIDAD", "")})
     for unidad in unidades:
-        conn.execute("INSERT OR IGNORE INTO unidades (nombre, estado) VALUES (?, 'activa')", (unidad,))
+        conn.execute(
+            """
+            INSERT INTO unidades (nombre, estado)
+            VALUES (?, 'activa')
+            ON CONFLICT (nombre) DO UPDATE SET estado = 'activa'
+            """,
+            (unidad,),
+        )
 
     unidad_ids = {
         row["nombre"]: row["id"]
@@ -728,9 +735,17 @@ def import_excel_personal(conn):
         categoria = GRADO_CATEGORIA.get(grado.upper(), "patrulleros")
         conn.execute(
             """
-            INSERT OR IGNORE INTO funcionarios
+            INSERT INTO funcionarios
                 (cedula, grado, nombres, apellidos, categoria, unidad_id, cargo, estado)
             VALUES (?, ?, ?, ?, ?, ?, ?, 'activo')
+            ON CONFLICT (cedula) DO UPDATE SET
+                grado = excluded.grado,
+                nombres = excluded.nombres,
+                apellidos = excluded.apellidos,
+                categoria = excluded.categoria,
+                unidad_id = excluded.unidad_id,
+                cargo = excluded.cargo,
+                estado = 'activo'
             """,
             (cedula, grado, nombres, apellidos, categoria, unidad_ids[unidad], row.get("CARGO", "")),
         )
