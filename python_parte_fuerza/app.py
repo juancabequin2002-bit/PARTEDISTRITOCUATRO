@@ -722,6 +722,7 @@ def import_excel_personal(conn):
         for row in conn.execute("SELECT id, nombre FROM unidades")
     }
 
+    matrix_cedulas = set()
     for row in rows:
         unidad = row.get("UNIDAD", "")
         grado = row.get("GRADO", "")
@@ -732,6 +733,7 @@ def import_excel_personal(conn):
             continue
         if not cedula:
             cedula = texto_orden(f"{unidad}-{grado}-{nombres}-{apellidos}")
+        matrix_cedulas.add(cedula)
         categoria = GRADO_CATEGORIA.get(grado.upper(), "patrulleros")
         conn.execute(
             """
@@ -749,6 +751,10 @@ def import_excel_personal(conn):
             """,
             (cedula, grado, nombres, apellidos, categoria, unidad_ids[unidad], row.get("CARGO", "")),
         )
+
+    for funcionario in conn.execute("SELECT id, cedula FROM funcionarios WHERE estado = 'activo'"):
+        if funcionario["cedula"] not in matrix_cedulas:
+            conn.execute("UPDATE funcionarios SET estado = 'eliminado' WHERE id = ?", (funcionario["id"],))
 
     for unidad in unidades:
         username, password = unit_credentials(unidad)
